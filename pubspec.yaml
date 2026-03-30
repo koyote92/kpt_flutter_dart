@@ -36,6 +36,7 @@ dependencies:
   url_launcher: ^6.3.0
   cupertino_icons: ^1.0.8
   webview_flutter: ^4.13.1
+  webview_flutter_android: ^4.2.0
   flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
