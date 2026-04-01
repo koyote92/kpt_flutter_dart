@@ -43,7 +43,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
             }
 
             // === ДОМЕН, КОТОРЫЙ ДОЛЖЕН ОТКРЫВАТЬСЯ ВО ВНЕШНЕМ БРАУЗЕРЕ ===
-            if (url.startsWith('https://kpt.kuraj-prodaj.com')) {
+            if (url.startsWith('https://kpt.kuraj-prodaj.com') ||
+                url.startsWith('https://max.ru')) {
               await _openInExternalBrowser(request.url);
               return NavigationDecision.prevent;
             }
