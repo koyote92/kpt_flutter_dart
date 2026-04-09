@@ -11,7 +11,7 @@
     </queries>
 
     <application
-        android:label="Кураж Продаж Тренажёр"
+        android:label="Кураж Продаж Тренажёр GL"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -41,8 +41,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
           onNavigationRequest: (NavigationRequest request) async {
             final url = request.url.toLowerCase();
 
-            if (url.startsWith('https://app-dev.0422.ru') ||
-                url.startsWith('https://auth.0422.ru')) {
+            if (url.startsWith('https://gl.kuraj-prodaj.com') ||
+                url.startsWith('https://gl-auth.0422.ru')) {
               return NavigationDecision.navigate;
             }
 
@@ -83,7 +83,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
           },
         ),
       )
-      ..loadRequest(Uri.parse("https://app-dev.0422.ru"));
+      ..loadRequest(Uri.parse("https://gl.kuraj-prodaj.com"));
   }
 
   Future<void> _openInExternalBrowser(String url) async {
