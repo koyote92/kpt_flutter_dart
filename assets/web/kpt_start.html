@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kurazh Sales Trainer</title>
+    <link rel="stylesheet" href="style.css?v=2.1">
+    <link rel="stylesheet" href="../../../Desktop/kuraj-app-gl/public/assets/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="../../../Desktop/kuraj-app-gl/public/telegram-web-app.js"></script>
+    <script>
+//      document.addEventListener('contextmenu', function(e) {         
+//		e.preventDefault();   // This stops the browser context menu
+//      });
+    </script>
+    <link rel="manifest" href="../../../Desktop/kuraj-app-gl/public/manifest.webmanifest">
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/kp_icon_192.png">
+    <meta name="theme-color" content="#1976d2">
+    <meta name="mobile-web-app-capable" content="yes">
+</head>
+<body>
+    <div id="app">
+<header class="header" style="display: flex; flex-direction: column; gap: 8px;">
+    <!-- Полоса прогресса -->
+    <div class="progress-bar-container" style="width: 100%; margin: 0;">
+        <div class="progress-bar" style="width: 0%;"></div>
+    </div>
+    
+    <!-- Баланс и Статус -->
+    <div class="balance-row" style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; width: 100%;">
+        <div class="balance">0 К</div>
+        
+        <!-- Плашка БУСТА (управляется через JS) -->
+        <div id="boost-status" style="display: none; align-items: center; background: linear-gradient(135deg, #ff9000, #ff5000); color: white; padding: 2px 10px; border-radius: 6px; font-weight: 800; font-size: 10px; box-shadow: 0 2px 10px rgba(255, 80, 0, 0.3); animation: fire-pulse 2s infinite; white-space: nowrap; text-transform: uppercase; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.2);">
+            <span style="margin-right: 4px; font-size: 11px;">🔥</span> В КУРАЖЕ
+        </div>
+    </div>
+</header>
+        <!-- ЭКРАН 1: ТРЕНАЖЕР -->
+        <main id="trainer-screen" class="main-content screen">
+            <div class="question-card">
+                <p class="question-text">Загрузка вопросов...</p>
+            </div>
+           <div class="answer-options">
+                <div class="answer-card" data-key="A">
+                    <div class="answer-letter">A</div>
+                    <div class="answer-text">Вариант A</div>
+                </div>
+                <div class="answer-card" data-key="B">
+                    <div class="answer-letter">B</div>
+                    <div class="answer-text">Вариант B</div>
+                </div>
+                <div class="answer-card" data-key="C">
+                    <div class="answer-letter">C</div>
+                    <div class="answer-text">Вариант C</div>
+                </div>
+                <div class="answer-card" data-key="D">
+                    <div class="answer-letter">D</div>
+                    <div class="answer-text">Вариант D</div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- ЭКРАН 2: РЕЙТИНГ -->
+        <div id="rating-screen" class="main-content screen hidden">
+            <h1>🏆</h1><h1>Рейтинг</h1>
+            <div class="tabs-container">
+                <button class="tab-button active" data-tab="weekly">Гонка Недели</button>
+                <button class="tab-button" data-tab="all-time">Зал Славы</button>
+            </div>
+            <div class="leaderboard-description" id="leaderboard-description"></div>
+            <ol class="leaderboard-list" id="leaderboard-list"></ol>
+            <div id="loading-indicator" class="hidden">Загрузка...</div>
+            <div class="user-position-container" id="user-position-container"></div>
+        </div>
+
+        <!-- ЭКРАН 3: ИСТОРИЯ -->
+        <div id="history-screen" class="main-content screen hidden">
+            <h1>📚</h1><h1>История</h1>
+            <div class="history-stats-container">
+                <div class="history-stat-card">
+                    <div class="stat-value" id="history-total">0</div>
+                    <div class="stat-label">Всего ответов</div>
+                </div>
+                <div class="history-stat-card">
+                    <div class="stat-value" id="history-accuracy">0%</div>
+                    <div class="stat-label">Точность</div>
+                </div>
+            </div>
+            <h3 class="history-subtitle">Последние ответы</h3>
+            <div id="history-loading" style="text-align: center; color: #888; margin-top: 20px;" class="hidden">Загрузка...</div>
+            <div id="history-list" class="history-list"></div>
+        </div>
+
+        <!-- ЭКРАН 4: ПРОФИЛЬ -->
+        <div id="profile-screen" class="main-content screen hidden">
+            <div class="profile-header-card">
+                <div class="profile-avatar" id="profile-avatar">?</div>
+                <div class="profile-info">
+                    <h2 id="profile-username">Загрузка...</h2>
+                    <span class="profile-level" id="profile-level">Новичок</span>
+                    <h4 id="profile-team-name">Личный профиль</h4>
+                    <h4><a href="https://kpt.kuraj-prodaj.com/gl_team_create" target="_blank">Создать команду</a></h4>
+                    <button id="connect-max-btn" class="promo-action-btn btn-purple">
+                        🔗 Связать с MAX
+                    </button>
+                </div>
+            </div>
+            <div class="streak-card">
+                <div class="streak-icon">🔥</div>
+                <div class="streak-text">
+                    <div class="streak-count"><span id="profile-streak">0</span> дней подряд</div>
+                    <div class="streak-label">Не сбавляй темп!</div>
+                </div>
+            </div>
+            <!-- Вставить после блока streak-card: -->
+            <div class="qualification-card" style="background: #fff; border-radius: 20px; padding: 20px; width: 100%; max-width: 350px; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 25px; text-align: center;">
+                <div style="font-size: 14px; font-weight: 700; color: #1C1C28; margin-bottom: 8px;">Выросли навыки?</div>
+                <p style="font-size: 12px; color: #666; line-height: 1.4; margin: 0 0 15px 0;">Если чувствуешь, что готов к более сложным вопросам, подтверди квалификацию.</p>
+                <button id="reset-qualification-btn" class="promo-action-btn btn-blue" style="margin: 0; font-size: 16px; padding: 12px;">🔄 Подтвердить уровень</button>
+            </div>
+
+            <h3 class="achievements-title">Твои награды</h3>
+            <div id="achievements-grid" class="achievements-grid"></div>
+
+            <!-- === КНОПКА "ДОПОЛНИТЕЛЬНО" (в самом низу профиля) === -->
+            <div style="margin-top: 30px; width: 100%; max-width: 350px; padding: 0 10px; box-sizing: border-box;">
+                <button id="clear-storage-btn" class="promo-action-btn btn-grey" style="margin-top: 10px;">
+            	    Выйти из профиля
+                </button>
+                <button id="additional-btn" 
+                        class="promo-action-btn btn-grey" 
+                        style="width: 100%; padding: 16px; font-size: 17px;">
+                    Дополнительно...
+                </button>
+            </div>
+        </div>   <!-- ← ЗАКРЫВАЕМ #profile-screen -->
+
+        <!-- НИЖНЯЯ НАВИГАЦИЯ (должна быть вне всех экранов!) -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-target="trainer-screen">
+                <i class="fa-solid fa-dumbbell"></i>
+                <span>Тренажер</span>
+            </button>
+            <button class="nav-item" data-target="rating-screen">
+                <i class="fa-solid fa-trophy"></i>
+                <span>Рейтинг</span>
+            </button>
+            <button class="nav-item" data-target="history-screen">
+                <i class="fa-solid fa-book"></i>
+                <span>История</span>
+            </button>
+            <button class="nav-item" data-target="profile-screen">
+                <i class="fa-solid fa-user"></i>
+                <span>Профиль</span>
+            </button>
+        </nav>
+
+        <!-- ОВЕРЛЕИ И МОДАЛКИ -->
+        <div id="explanation-overlay" class="hidden">
+            <div class="explanation-popup">
+                <p id="explanation-text"></p>
+                <button id="explanation-ok-btn">OK</button>
+            </div>
+        </div>
+        
+        <div id="error-toast" class="hidden"><p>Неверно, попробуйте еще раз!</p></div>
+
+        <div id="achievement-popup" class="overlay hidden">
+            <div class="achievement-modal" id="ach-modal-content">
+                <div class="ach-modal-icon" id="ach-modal-icon">🏆</div>
+                <h2 class="ach-modal-title" id="ach-modal-title"></h2>
+                <div class="ach-modal-status" id="ach-modal-status"></div>
+                <p class="ach-modal-desc" id="ach-modal-desc"></p>
+                <button id="ach-modal-action" class="promo-action-btn btn-green hidden">Забрать награду</button>
+                <button id="ach-modal-close" class="promo-action-btn btn-blue" style="margin-top: 10px;">Понятно</button>
+            </div>
+        </div>
+
+        <div id="congrats-popup" class="overlay hidden">
+            <div class="achievement-modal congrats-theme">
+                <div class="congrats-header">🎉 НОВАЯ НАГРАДА!</div>
+                <div class="ach-modal-icon pulse-anim" id="congrats-icon">🚀</div>
+                <h2 class="ach-modal-title" id="congrats-title"></h2>
+                <p class="ach-modal-desc" id="congrats-desc"></p>
+                <button id="congrats-action-btn" class="promo-action-btn btn-green hidden">Записаться</button>
+                <button id="congrats-close-btn" class="promo-action-btn btn-blue" style="margin-top: 10px;">Отлично</button>
+            </div>
+        </div>
+
+        <div id="summary-screen" class="overlay hidden">
+            <div class="summary-container">
+                <h2 class="summary-title" id="summary-header"></h2>
+                <div class="summary-cards">
+            <div class="stat-card">
+                <div class="stat-header"><span>Очки опыта</span><span class="icon">⚡</span></div>
+                 <div class="progress-track"><div class="progress-fill purple" id="bar-xp"></div><span class="progress-text" id="text-xp">0 / 150</span></div>
+                </div>
+            <div class="stat-card">
+                <div class="stat-header"><span>Вопросы</span><span class="icon">📖</span></div>
+                <div class="progress-track"><div class="progress-fill blue" id="bar-questions"></div><span class="progress-text" id="text-questions">0 / 10</span></div>
+                </div>
+            <div class="stat-card">
+                <div class="stat-header"><span>Без ошибок</span><span class="icon">🎯</span></div>
+                <div class="progress-track"><div class="progress-fill green" id="bar-perfect"></div><span class="progress-text" id="text-perfect">0 / 10</span></div>
+                </div>
+            </div>
+<div class="monthly-goal">
+    <div class="stat-header"><span>Цель месяца</span><span class="icon">🦁</span></div>
+    <div class="progress-track large"><div class="progress-fill gold" id="bar-monthly"></div><span class="progress-text" id="text-monthly">0 / 5000</span></div>
+</div>
+                
+                <button id="summary-ok-btn" class="promo-action-btn btn-green" style="margin-top: 20px;">Далее</button>
+            </div>
+        </div>
+
+        <div id="promo-screen" class="overlay hidden">
+    <div class="summary-container promo-content">
+        <h2 class="start-title">Метафорическая карта дня</h2>
+        <div class="card-scene">
+            <div class="card-object" id="promo-flip-card">
+                <!-- ЛИЦО (то, что увидим ПОСЛЕ поворота) -->
+                <div class="card-face card-front">
+                    <img id="promo-result-image" src="">
+                </div>
+                <!-- РУБАШКА (то, что видим СРАЗУ) -->
+                <div class="card-face card-back">
+                    <img src="../../../Desktop/kuraj-app-gl/public/img/instramet_final%201.jpeg">
+                </div>
+            </div>
+        </div>
+        <div id="promo-text" class="promo-quote"></div>
+        <button id="promo-flip-btn" class="promo-action-btn btn-blue">Перевернуть</button>
+        <button id="btn-close-app" class="promo-action-btn btn-blue hidden">В рейтинг</button>
+    </div>
+</div>
+
+    <!-- СТИЛИЗОВАННЫЙ ALERT БЕЗ КАРТИНКИ -->
+    <div id="styled-alert-overlay" class="hidden">
+        <div class="explanation-popup" style="max-width: 340px; padding: 28px 24px;">
+            <p id="styled-alert-text" style="font-size: 1.1em; line-height: 1.45; margin: 0 0 24px 0; color: #1C1C28;"></p>
+            <button id="styled-alert-ok-btn" class="promo-action-btn btn-blue">Понятно</button>
+        </div>
+    </div>
+
+        <!-- СТАРТОВЫЙ ЭКРАН -->
+        <div id="start-screen" class="overlay">
+        <!-- <div id="start-screen" class="overlay hidden"> -->
+            <div class="summary-container promo-content">
+                <h2 class="start-title">Настрой на продажи!</h2>
+                <div class="card-scene">
+                    <div class="card-object" id="flip-card">
+                        <div class="card-face card-front"><img id="metacard-front-img" src=""></div>
+                        <div class="card-face card-back"><img src="../../../Desktop/kuraj-app-gl/public/start_img/metacard_start%201.jpeg"></div>
+                    </div>
+                </div>
+                <button id="start-btn" class="promo-action-btn btn-blue">Открыть карту</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="client.js?v=2.1"></script>
+</body>
+</html>

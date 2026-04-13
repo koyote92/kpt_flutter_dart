@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kurazh Admin | Аналитика</title>
+    <script src="/chart.min.js"></script>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --primary: #3b82f6; --text: #f8fafc; --dim: #94a3b8; --success: #10b981; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; font-size: 16px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--card); padding: 15px; border-radius: 16px; border: 1px solid #334155; margin-bottom: 15px; position: relative; transition: 0.2s; }
+        .stat-card { cursor: pointer; }
+        .stat-card:hover { border-color: var(--primary); transform: translateY(-2px); background: #232f46; }
+        
+        h1 { margin: 0; font-size: 26px; }
+        
+        /* ПОДСКАЗКИ (TOOLTIPS) */
+        .info-wrap { display: flex; align-items: center; gap: 6px; }
+        .help-icon { 
+            display: inline-flex; justify-content: center; align-items: center;
+            width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--dim);
+            font-size: 11px; color: var(--dim); cursor: help; position: relative;
+        }
+        .help-icon:hover { border-color: var(--primary); color: var(--primary); }
+        .help-icon::after {
+            content: attr(data-tip);
+            position: absolute; bottom: 125%; left: 50%; transform: translateX(-50%);
+            background: #000; color: #fff; padding: 8px 12px; border-radius: 8px;
+            font-size: 12px; width: 200px; text-align: center; font-weight: normal;
+            visibility: hidden; opacity: 0; transition: 0.2s; z-index: 9999; line-height: 1.4;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); pointer-events: none;
+        }
+        .help-icon:hover::after { visibility: visible; opacity: 1; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .stat-val { font-size: 22px; font-weight: 800; color: var(--primary); margin-top: 5px; }
+        .stat-label { color: var(--dim); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+
+        .charts-grid { display: flex; flex-direction: column; gap: 15px; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        
+        table { width: 100%; border-collapse: collapse; min-width: 500px; }
+        td { padding: 14px 12px; border-top: 1px solid #334155; font-size: 15px; }
+        
+        .btn-main { background: var(--primary); border: none; color: white; padding: 10px 18px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .btn-group { display: flex; background: #334155; padding: 4px; border-radius: 10px; gap: 4px; }
+        .btn-group button { background: transparent; border: none; padding: 6px 12px; font-size: 12px; color: var(--dim); cursor: pointer; }
+        .btn-group button.active { background: #475569; color: white; border-radius: 7px; }
+        
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: flex-start; z-index: 1000; overflow-y: auto; padding: 10px; }
+        .modal-content { background: var(--card); padding: 25px; border-radius: 24px; width: 100%; max-width: 1000px; margin-top: 20px; border: 1px solid #334155; position: relative; }
+        
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: rgba(255,255,255,0.03); border-radius: 12px; margin-bottom: 8px; font-size: 14px; cursor: pointer; }
+        .level-badge { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: #334155; color: var(--dim); margin-top: 4px; display: inline-block; font-weight: bold; }
+        .val-num { font-size: 16px; font-weight: 800; color: var(--success); }
+
+        @media (min-width: 768px) {
+            .stats-grid { grid-template-columns: repeat(5, 1fr); }
+            .charts-grid { grid-template-columns: 2fr 1.2fr; display: grid; }
+            .modal-grid-container { grid-template-columns: 52% 45% !important; display: grid !important; gap: 3% !important; }
+            .stat-val { font-size: 26px; }
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="login-screen" class="card" style="max-width: 400px; margin: 80px auto; text-align: center;">
+        <h2 style="margin-bottom:20px">Kurazh Admin 🦁</h2>
+        <input type="password" id="passInput" style="width: 100%; padding: 15px; background: #0f172a; border: 1px solid #475569; color: white; border-radius: 10px; margin-bottom: 15px; box-sizing: border-box;" placeholder="Пароль">
+        <button class="btn-main" style="width: 100%" onclick="checkPass()">Войти</button>
+    </div>
+
+    <div id="dashboard" class="hidden">
+        <header style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+            <h1>Аналитика</h1>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <div class="btn-group">
+                    <button id="btn-today" onclick="setPeriod('today')">Сегодня</button>
+                    <button id="btn-week" onclick="setPeriod('week')">7д</button>
+                    <button id="btn-month" onclick="setPeriod('month')">30д</button>
+                </div>
+                <input type="date" id="startDate" style="padding: 8px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #475569;">
+                <input type="date" id="endDate" style="padding: 8px; border-radius: 8px; background: #1e293b; color: white; border: 1px solid #475569;">
+                <button class="btn-main" onclick="loadData()">ОК</button>
+            </div>
+        </header>
+
+        <div class="stats-grid">
+            <div class="card stat-card" style="border-left: 4px solid var(--success);" onclick="showSummaryList('totalEver', 'Все пользователи в базе')">
+                <div class="info-wrap">
+                    <span class="stat-label">Всего в базе</span>
+                    <span class="help-icon" data-tip="Общее количество реальных пользователей за всё время работы бота.">?</span>
+                </div>
+                <div id="totalEver" class="stat-val">0</div>
+            </div>
+            <div class="card stat-card" onclick="showSummaryList('totalUsers', 'Активные игроки (в период)')">
+                <div class="info-wrap">
+                    <span class="stat-label">Активных</span>
+                    <span class="help-icon" data-tip="Количество уникальных игроков, которые ответили хотя бы на 1 вопрос в выбранный период.">?</span>
+                </div>
+                <div id="totalUsers" class="stat-val">0</div>
+            </div>
+            <div class="card stat-card" onclick="showSummaryList('newUsers', 'Новые регистрации (в период)')">
+                <div class="info-wrap">
+                    <span class="stat-label">Новых</span>
+                    <span class="help-icon" data-tip="Пользователи, которые впервые нажали /start в боте в выбранные даты.">?</span>
+                </div>
+                <div id="newUsers" class="stat-val">0</div>
+            </div>
+            <div class="card stat-card" onclick="showSummaryList('hotLeads', 'Кандидаты на игру (4000+)')">
+                <div class="info-wrap">
+                    <span class="stat-label">Кандидаты</span>
+                    <span class="help-icon" data-tip="Игроки с общим балансом более 4000 очков, которые были активны в этот период.">?</span>
+                </div>
+                <div id="hotLeads" class="stat-val">0</div>
+            </div>
+            <div class="card stat-card" onclick="showSummaryList('totalXP', 'Лидеры по XP (в период)')">
+                <div class="info-wrap">
+                    <span class="stat-label">XP в период</span>
+                    <span class="help-icon" data-tip="Суммарное количество очков опыта, набранное всеми игроками за выбранный промежуток времени.">?</span>
+                </div>
+                <div id="totalXP" class="stat-val">0</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="card">
+                <div class="info-wrap">
+                    <h3 style="margin:0">Динамика активности</h3>
+                    <span class="help-icon" data-tip="График набора XP по дням. Позволяет отследить пики интереса пользователей.">?</span>
+                </div>
+                <div class="chart-container" style="margin-top:15px;"><canvas id="activityChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="info-wrap">
+                    <h3 style="margin:0">Топ ошибок</h3>
+                    <span class="help-icon" data-tip="Темы вопросов, по которым пользователи совершили больше всего ошибок в этот период.">?</span>
+                </div>
+                <div class="chart-container" style="margin-top:15px;"><canvas id="painChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin:0 0 15px 0">Рейтинг (Общий баланс)</h3>
+            <div style="overflow-x: auto;"><table id="mainTable"><thead><tr><th>Игрок</th><th>Баланс</th><th>Уровень</th><th>Действие</th></tr></thead><tbody id="usersTableBody"></tbody></table></div>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛКА ДЛЯ СПИСКОВ -->
+<div id="listModal" class="modal hidden">
+    <div class="modal-content">
+        <div class="list-header" style="display:flex; justify-content:space-between; margin-bottom:20px;">
+            <h2 id="listModalTitle" style="color: var(--primary); margin: 0; font-size: 18px;">Список</h2>
+            <div class="btn-group">
+                <button id="sort-date" onclick="sortCurrentList('date')">По дате</button>
+                <button id="sort-score" onclick="sortCurrentList('score')">По очкам</button>
+            </div>
+            <button onclick="closeListModal()" class="btn-main" style="padding: 5px 15px; background: #334155; font-size: 12px;">ЗАКРЫТЬ</button>
+        </div>
+        <div id="listModalContainer"></div>
+    </div>
+</div>
+
+<!-- МОДАЛКА ДЛЯ ИНФО ЮЗЕРА -->
+<div id="userModal" class="modal hidden">
+    <div class="modal-content">
+        <button onclick="closeModal()" style="float:right;" class="btn-main">ЗАКРЫТЬ</button>
+        <h2 id="modalUserName" style="color: var(--primary); margin-top: 0;">Игрок</h2>
+        <div class="modal-grid-container" style="display:grid; gap:20px; margin-top:20px;">
+            <div style="background: rgba(255,255,255,0.02); border-radius: 20px; padding: 15px;">
+                <h4 style="text-align:center; color:var(--dim); margin-bottom:20px;">Карта компетенций</h4>
+                <div style="height:420px; width:100%;"><canvas id="radarChart"></canvas></div>
+            </div>
+            <div>
+                <h4 style="color:var(--dim); margin-bottom:15px;">Последние ответы</h4>
+                <div id="userAnswersList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let token = ""; 
+    let charts = {}; 
+    let lastData = null; 
+    let currentModalType = "";
+    let isTeamMode = false;
+    let teamUuid = null;
+
+    function wrapText(text, maxChars) {
+        const words = text.split(' '); 
+        const lines = []; 
+        let currentLine = '';
+        words.forEach(word => { 
+            if ((currentLine + word).length > maxChars) { 
+                lines.push(currentLine.trim()); 
+                currentLine = word + ' '; 
+            } else { 
+                currentLine += word + ' '; 
+            } 
+        });
+        lines.push(currentLine.trim()); 
+        return lines;
+    }
+
+    // Определяем режим открытия страницы
+    function detectMode() {
+        const path = window.location.pathname;
+        if (path.startsWith('/team/')) {
+            isTeamMode = true;
+            teamUuid = path.split('/team/')[1];
+            console.log(`[TEAM MODE] Activated for team_uuid = ${teamUuid}`);
+            
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            setPeriod('month');
+        } else {
+            isTeamMode = false;
+            console.log('[ADMIN MODE] Password required');
+        }
+    }
+
+    function checkPass() {
+        if (document.getElementById('passInput').value === 'boriskurajufa') {
+            token = 'boriskurajufa'; 
+            document.getElementById('login-screen').classList.add('hidden'); 
+            document.getElementById('dashboard').classList.remove('hidden'); 
+            setPeriod('month');
+        } else alert("Неверный пароль");
+    }
+
+    function setPeriod(p) {
+        const end = new Date(); 
+        const start = new Date();
+        document.querySelectorAll('.btn-group button').forEach(b => b.classList.remove('active'));
+        
+        if(p === 'today') document.getElementById('btn-today').classList.add('active');
+        else if(p === 'week') { start.setDate(end.getDate() - 7); document.getElementById('btn-week').classList.add('active'); }
+        else if(p === 'month') { start.setDate(end.getDate() - 30); document.getElementById('btn-month').classList.add('active'); }
+        
+        document.getElementById('endDate').valueAsDate = end; 
+        document.getElementById('startDate').valueAsDate = start; 
+        loadData();
+    }
+
+    async function loadData() {
+        let url;
+        if (isTeamMode && teamUuid) {
+            url = `/api/team/stats?team_uuid=${teamUuid}&startDate=${document.getElementById('startDate').value}&endDate=${document.getElementById('endDate').value}`;
+        } else {
+            if (!token) return;
+            url = `/api/admin/stats?token=${token}&startDate=${document.getElementById('startDate').value}&endDate=${document.getElementById('endDate').value}`;
+        }
+
+        const res = await fetch(url);
+        lastData = await res.json();
+
+        document.getElementById('totalEver').innerText = lastData.summary.totalEver.count;
+        document.getElementById('totalUsers').innerText = lastData.summary.totalUsers.count;
+        document.getElementById('newUsers').innerText = lastData.summary.newUsers.count;
+        document.getElementById('hotLeads').innerText = lastData.summary.hotLeads.count;
+        document.getElementById('totalXP').innerText = Number(lastData.summary.totalXP.count).toLocaleString();
+
+        renderTable(lastData.usersList); 
+        renderActivity(lastData.activityData); 
+        renderPain(lastData.painPoints);
+    }
+
+    // Остальные функции (showSummaryList, sortCurrentList, renderActivity, renderPain, renderTable) — оставляем как были у тебя
+
+    function showSummaryList(type, title) {
+        currentModalType = type; 
+        document.getElementById('listModalTitle').innerText = title; 
+        sortCurrentList('date'); 
+        document.getElementById('listModal').classList.remove('hidden');
+    }
+
+    function sortCurrentList(mode) {
+        document.getElementById('sort-date').classList.toggle('active', mode === 'date'); 
+        document.getElementById('sort-score').classList.toggle('active', mode === 'score');
+        let list = [...lastData.summary[currentModalType].list];
+        if (mode === 'score') list.sort((a, b) => b.val - a.val); 
+        else list.sort((a, b) => new Date(b.info) - new Date(a.info));
+        document.getElementById('listModalContainer').innerHTML = list.map(u => `
+            <div class="list-item" onclick="showUserDetails(${u.id}, '${u.username.replace(/'/g, "\\'")}')">
+                <div><strong>${u.username}</strong><br><span class="level-badge">${u.level || 'Новичок'}</span><small style="color:var(--dim); margin-left:10px;">${new Date(u.info).toLocaleString()}</small></div>
+                <div style="text-align:right"><span class="val-num">${u.val}</span><br><small style="color:var(--dim)">Баллы</small></div>
+            </div>`).join('');
+    }
+
+    function closeListModal() { document.getElementById('listModal').classList.add('hidden'); }
+
+    function renderActivity(list) { 
+        const ctx = document.getElementById('activityChart'); 
+        if (charts.act) charts.act.destroy(); 
+        charts.act = new Chart(ctx, { type: 'line', data: { labels: list.map(d => new Date(d.date).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})), datasets: [{ label: 'XP', data: list.map(d => d.total_xp), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } }); 
+    }
+
+    function renderPain(list) { 
+        const ctx = document.getElementById('painChart'); 
+        if (charts.pain) charts.pain.destroy(); 
+        charts.pain = new Chart(ctx, { type: 'doughnut', data: { labels: list.map(p => `${p.topic}: ${p.errors}`), datasets: [{ data: list.map(p => p.errors), backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#8b5cf6'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#f8fafc', font: { size: 10 } } } } } }); 
+    }
+
+    function renderTable(users) { 
+        document.getElementById('usersTableBody').innerHTML = users.map(u => `<tr><td><strong>${u.username}</strong></td><td>${u.balance} К</td><td><span style="background:rgba(59,130,246,0.1); color:#60a5fa; padding:4px 8px; border-radius:6px; font-size:13px;">${u.current_level}</span></td><td><button class="btn-main" style="padding: 8px 15px; font-size: 12px;" onclick="showUserDetails(${u.id}, '${u.username.replace(/'/g, "\\'")}')">ИНФО</button></td></tr>`).join(''); 
+    }
+
+    async function showUserDetails(id, name) {
+        document.getElementById('listModal').classList.add('hidden'); 
+        document.getElementById('modalUserName').innerText = name; 
+        document.getElementById('userAnswersList').innerHTML = "Загрузка..."; 
+        document.getElementById('userModal').classList.remove('hidden');
+        
+        let url;
+        if (isTeamMode && teamUuid) {
+            url = `/api/team/user-details?team_uuid=${teamUuid}&userId=${id}`;
+        } else {
+            url = `/api/admin/user-details?token=${token}&userId=${id}`;
+        }
+    
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+        
+            // Radar chart
+            const ctx = document.getElementById('radarChart'); 
+            if (charts.radar) charts.radar.destroy();
+            
+            charts.radar = new Chart(ctx, { 
+                type: 'radar', 
+                data: { 
+                    labels: data.topicsStats.map(t => wrapText(`${t.topic}: ${t.correct}/${t.total}`, 18)), 
+                    datasets: [{ 
+                        data: data.topicsStats.map(t => (t.correct/t.total*100).toFixed(0)), 
+                        borderColor: '#3b82f6', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)', 
+                        borderWidth: 3 
+                    }] 
+                }, 
+                options: { 
+                    maintainAspectRatio: false, 
+                    layout: { padding: 30 }, 
+                    scales: { r: { beginAtZero: true, max: 100, ticks: { display: false }, grid: { color: '#334155' }, pointLabels: { color: '#f8fafc', font: { size: 12, weight: '600' }, padding: 15 } } }, 
+                    plugins: { legend: { display: false } } 
+                } 
+            });
+        
+            // Последние ответы
+            document.getElementById('userAnswersList').innerHTML = data.answers.map(a => `
+                <div style="margin-bottom:12px; padding: 12px; background: rgba(255,255,255,0.04); border-radius: 12px; font-size: 14px;">
+                    <div style="margin-bottom: 5px;">
+                        <span style="color:${a.is_correct ? '#10b981' : '#ef4444'}; font-weight: bold;">${a.is_correct ? '✅ ВЕРНО' : '❌ ОШИБКА'}</span>
+                        <span style="color: var(--dim); font-size: 11px; margin-left: 10px;">${a.topic}</span>
+                    </div>
+                    <div style="line-height: 1.5;">${a.problem}...</div>
+                </div>
+            `).join('');
+        } catch (e) {
+            console.error(e);
+            document.getElementById('userAnswersList').innerHTML = '<p style="color:red">Ошибка загрузки данных пользователя</p>';
+        }
+    }
+
+    function closeModal() { 
+        document.getElementById('userModal').classList.add('hidden'); 
+    }
+
+    // Запуск определения режима
+    window.onload = detectMode;
+</script>
+</body>
+</html>

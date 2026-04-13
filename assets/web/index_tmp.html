@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html data-bs-theme="light" lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+    <title>KP_LG_OLESYA</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/kp_icon_192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="assets/img/kp_icon_512.png">
+    <link rel="stylesheet" href="assets/bootstrap/css/bootstrap.min.css">
+    <link rel="manifest" href="manifest.json" crossorigin="use-credentials">
+    <link rel="stylesheet" href="assets/css/Login-Form-Basic-icons.css">
+</head>
+
+<body>
+    <div style="padding-right: auto;padding-left: auto;margin-right: auto;margin-left: auto;max-width: 500px;margin-top: 2rem;">
+        <h2 class="text-uppercase fw-bold text-center">КУРАж продаж</h2><img class="img-fluid object-fit-contain rounded w-100" style="min-height: 300px;" src="assets/img/hero_GL-15.svg">
+        <p class="text-center" style="margin-right: 16px;margin-left: 16px;">Специальная версия приложения <br>для участников Game &amp; Learn<br><br><br></p>
+    </div>
+    <div class="container py-4 py-xl-5">
+        <div class="row mb-5">
+            <div class="col-md-8 col-xl-6 text-center mx-auto">
+                <h2>НАШИ ИГРЫ</h2>
+            </div>
+        </div>
+        <div class="row gy-4 row-cols-1 row-cols-md-2 row-cols-xl-3">
+            <div class="col">
+                <div class="card"><img class="object-fit-contain card-img-top w-100 d-block" style="height: 200px;margin-top: 1rem;" src="assets/img/kp_new_11.svg">
+                    <div class="card-body p-4">
+                        <h4 class="card-title">Тренажер Кураж Продаж</h4>
+                        <p class="card-text">Революционный онлайн-тренажер, прокачивающий продажи до небывалых высот.&nbsp;<br>Играй, обучайся, тренируйся и получай советы от специалистов</p>
+                        <div class="d-flex"></div>
+                        <div class="d-flex" style="margin-top: 1rem;"><a class="btn btn-primary" role="button" style="min-width: 100%;" href="/kpt_start.html">ЗАПУСТИТЬ ТРЕНАЖЕР</a></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card"><img class="object-fit-contain card-img-top w-100 d-block" style="height: 200px;margin-top: 1rem;" src="assets/img/12_logo-02_optimal-02.svg">
+                    <div class="card-body p-4">
+                        <h4 class="text-center card-title">12:Принятие</h4>
+                        <p class="card-text">Перестань копаться в догадках. За 2 часа ты увидишь правду о своей жизни и получишь чёткий, практичный план действий.<br>Интенсив, безопасная структура и поддерживающая группа — всё, чтобы начать изменения сразу.</p>
+                        <div class="d-flex"><a class="btn btn-primary" role="button" style="min-width: 100%;" href="https://kuraj-prodaj.com/land/12/" target="_blank">УЗНАТЬ БОЛЬШЕ</a></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="card"><img class="object-fit-contain card-img-top w-100 d-block" style="height: 200px;margin-top: 1rem;" src="assets/img/dreamer_logo-03.svg">
+                    <div class="card-body p-4">
+                        <h4 class="text-center card-title">Мечатель</h4>
+                        <p class="card-text">Играете на свой страх, совесть&nbsp;и ответственность, потому что&nbsp;эта игра поменяет вашу жизнь.<br>Вы вспомните про свою&nbsp;мечту и вам придется<br>действовать.&nbsp;</p>
+                        <div class="d-flex"><a class="btn btn-primary" role="button" style="min-width: 100%;" href="https://mechtatel.team/" target="_blank">УЗНАТЬ БОЛЬШЕ</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div><script>
+// === PWA Install Button with Verbose Logging ===
+
+console.log('[PWA Install] Script loaded — starting initialization');
+
+let deferredPrompt = null;
+let installButtonVisible = false;
+
+const installButton = document.getElementById('install-button');
+
+if (!installButton) {
+  console.error('[PWA Install] CRITICAL: Element with id="install-button" not found in DOM');
+} else {
+  console.log('[PWA Install] Found install button element');
+}
+
+// ────────────────────────────────────────────────
+// 1. Listen for the beforeinstallprompt event
+// ────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', (e) => {
+  console.group('[PWA Install] beforeinstallprompt event fired');
+  console.log('Event details:', e);
+
+  // Prevent the default mini-infobar / automatic prompt
+  e.preventDefault();
+  console.log('→ Called preventDefault() — default browser UI suppressed');
+
+  // Store the event for later use
+  deferredPrompt = e;
+  console.log('→ Deferred prompt saved (event stored)');
+
+  // Show our custom install button
+  if (installButton) {
+    installButton.style.display = 'block'; // or 'inline-block', 'flex', etc.
+    installButtonVisible = true;
+    console.log('→ Custom install button is now VISIBLE');
+  } else {
+    console.warn('→ Wanted to show button, but button element is missing');
+  }
+
+  console.groupEnd();
+});
+
+// ────────────────────────────────────────────────
+// 2. Handle click on our custom install button
+// ────────────────────────────────────────────────
+if (installButton) {
+  installButton.addEventListener('click', async () => {
+    console.group('[PWA Install] User clicked the install button');
+
+    if (!deferredPrompt) {
+      console.warn('→ No deferredPrompt available. Possible reasons:');
+      console.warn('  • already installed');
+      console.warn('  • browser does not support install prompt');
+      console.warn('  • event was not captured (wrong timing / scope)');
+      console.warn('  • user dismissed previous prompt');
+      console.groupEnd();
+      return;
+    }
+
+    console.log('→ deferredPrompt exists → showing native install dialog...');
+
+    try {
+      const promptResult = await deferredPrompt.prompt();
+      console.log('→ Native prompt shown');
+      console.log('Install outcome:', promptResult.outcome); // "accepted" | "dismissed"
+
+      if (promptResult.outcome === 'accepted') {
+        console.log('🎉 User accepted installation');
+      } else {
+        console.log('User dismissed / canceled the install prompt');
+      }
+
+      // The prompt can only be used once → clean it up
+      deferredPrompt = null;
+      console.log('→ deferredPrompt cleared (one-time use)');
+
+      // Hide button after interaction (common UX pattern)
+      installButton.style.display = 'none';
+      installButtonVisible = false;
+      console.log('→ Install button hidden after user interaction');
+    } catch (err) {
+      console.error('[PWA Install] Error while showing prompt:', err);
+    }
+
+    console.groupEnd();
+  });
+}
+
+// ────────────────────────────────────────────────
+// 3. Optional: detect when the app was actually installed
+// ────────────────────────────────────────────────
+window.addEventListener('appinstalled', () => {
+  console.group('[PWA Install] appinstalled event fired');
+  console.log('🎉 PWA was successfully installed!');
+  console.log('Current URL:', window.location.href);
+
+  // You can do extra things here:
+  // - show thank you message
+  // - send analytics event
+  // - hide any remaining UI
+
+  if (installButtonVisible) {
+    installButton.style.display = 'none';
+    console.log('→ Install button hidden after successful install');
+  }
+
+  console.groupEnd();
+});
+
+// ────────────────────────────────────────────────
+// Initial diagnostics (helps understand browser support)
+// ────────────────────────────────────────────────
+console.log('[PWA Install] Initial environment check:');
+console.log('  • beforeinstallprompt supported?', 'BeforeInstallPromptEvent' in window);
+console.log('  • is standalone mode?', window.matchMedia('(display-mode: standalone)').matches);
+console.log('  • navigator.standalone?', !!window.navigator.standalone); // iOS legacy
+console.log('  • User agent:', navigator.userAgent.substring(0, 80) + '...');
+</script>
+    <script src="assets/bootstrap/js/bootstrap.min.js"></script>
+</body>
+
+</html>

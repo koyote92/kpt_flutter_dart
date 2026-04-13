@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 void main() {
   WebViewPlatform.instance = AndroidWebViewPlatform();
@@ -40,50 +41,69 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         NavigationDelegate(
           onNavigationRequest: (NavigationRequest request) async {
             final url = request.url.toLowerCase();
+            print('🔄 NavigationRequest: $url');
 
-            if (url.startsWith('https://gl.kuraj-prodaj.com') ||
-                url.startsWith('https://gl-auth.0422.ru')) {
+            // Разрешаем всё локальное
+            if (url.startsWith('asset:///') ||
+                url.contains('local') ||
+                url.endsWith('.html') ||
+                url.endsWith('.js') ||
+                url.endsWith('.css')) {
+              print('✅ Allowed local resource');
               return NavigationDecision.navigate;
             }
 
-            if (url.startsWith('https://kpt.kuraj-prodaj.com') ||
-                url.startsWith('https://max.ru')) {
-              await _openInExternalBrowser(request.url);
-              return NavigationDecision.prevent;
+            // Разрешаем свои домены
+            if (url.startsWith('https://gl.kuraj-prodaj.com') ||
+                url.startsWith('https://gl-auth.0422.ru') ||
+                url.startsWith('https://kpt.kuraj-prodaj.com')) {
+              return NavigationDecision.navigate;
             }
 
+            // Всё остальное — в браузер
             await _openInExternalBrowser(request.url);
             return NavigationDecision.prevent;
           },
 
-          // ====================== ОБРАБОТКА ОШИБОК ======================
           onWebResourceError: (WebResourceError error) {
-            print('WebView Error: ${error.errorCode} - ${error.description}');
+            print('╔══════════════════════════════════════════════════════════════');
+            print('║ WEBVIEW RESOURCE ERROR');
+            print('╠══════════════════════════════════════════════════════════════');
+            print('║ Error Code     : ${error.errorCode}');
+            print('║ Description    : ${error.description}');
+            print('║ Failing URL    : ${error.url ?? "unknown"}');
+            print('║ Error Type     : ${error.errorType}');
+            print('║ Is Main Frame  : ${error.isForMainFrame}');
+            print('╚══════════════════════════════════════════════════════════════');
 
-            // Показываем свою заглушку при любой ошибке загрузки
             if (mounted) {
-              setState(() {
-                hasError = true;
-              });
+              setState(() => hasError = true);
             }
           },
 
-          onPageStarted: (String url) {
-            // Сбрасываем ошибку, когда начинается новая загрузка
-            if (mounted && hasError) {
-              setState(() => hasError = false);
-            }
-          },
-
-          onPageFinished: (String url) {
-            // Если страница успешно загрузилась — скрываем заглушку
-            if (mounted && hasError) {
-              setState(() => hasError = false);
-            }
-          },
+          onPageStarted: (String url) => print('📄 Page started: $url'),
+          onPageFinished: (String url) => print('✅ Page finished: $url'),
         ),
-      )
-      ..loadRequest(Uri.parse("https://gl.kuraj-prodaj.com"));
+      );
+
+    // Load local HTML instead of remote URL
+    _loadLocalWebApp();
+  }
+
+  Future<void> _loadLocalWebApp() async {
+    try {
+      final String html = await rootBundle.loadString('assets/web/index.html');
+
+      await controller.loadHtmlString(
+        html,
+        baseUrl: 'file:///android_asset/flutter_assets/assets/web/', // ← Это важно!
+      );
+
+      print('[WebView] Successfully loaded via loadHtmlString + baseUrl');
+    } catch (e) {
+      print('[WebView] Failed to load local HTML: $e');
+      await controller.loadRequest(Uri.parse("https://gl.kuraj-prodaj.com"));
+    }
   }
 
   Future<void> _openInExternalBrowser(String url) async {
@@ -124,43 +144,31 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
-                          Icons.cloud_off_rounded,
-                          size: 90,
-                          color: Colors.grey,
-                        ),
+                        const Icon(Icons.cloud_off_rounded, size: 90, color: Colors.grey),
                         const SizedBox(height: 32),
                         const Text(
                           "Сервис временно недоступен",
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          "Пожалуйста, проверьте подключение к интернету\nи попробуйте позже",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                            height: 1.4,
+                        const SizedBox(height: 20),
+
+                        // Show more details on phone
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          color: Colors.red[50],
+                          child: const Text(
+                            "Не удалось загрузить локальные файлы.\nПроверьте assets/web/kpt_start.html",
+                            style: TextStyle(color: Colors.red, fontSize: 14),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
                         ),
+
                         const SizedBox(height: 40),
                         ElevatedButton.icon(
                           onPressed: _reloadPage,
                           icon: const Icon(Icons.refresh),
                           label: const Text("Повторить попытку"),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 16,
-                            ),
-                            textStyle: const TextStyle(fontSize: 17),
-                          ),
                         ),
                       ],
                     ),
