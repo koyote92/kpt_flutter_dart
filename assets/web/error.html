@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Кураж Продаж — Ошибка</title>
+    <link rel="stylesheet" href="style.css?v=2.1">
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .error-container {
+            max-width: 420px;
+        }
+        .error-icon {
+            font-size: 90px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        .error-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: #e9721c;
+            margin-bottom: 12px;
+        }
+        .error-text {
+            font-size: 17px;
+            line-height: 1.5;
+            color: #cbd5e1;
+            margin-bottom: 35px;
+        }
+        .btn-retry {
+            background: #e9721c;
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 18px;
+            font-weight: 700;
+            border-radius: 14px;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #c15d15;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid #64748b;
+            color: #cbd5e1;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+    </style>
+</head>
+<body>
+<div class="error-container">
+    <div class="error-icon">☁️</div>
+    <h1 class="error-title">Сервис временно недоступен</h1>
+    <p class="error-text">
+        Не удалось загрузить данные.<br>
+        Проверьте интернет-соединение или попробуйте позже.
+    </p>
+
+    <button onclick="restartApp()" class="btn-retry">
+        🔄 Перезапустить приложение
+    </button>
+<!--    <button onclick="goHome()" class="btn-retry btn-secondary">Вернуться на главную</button>-->
+
+<!--    <p style="margin-top: 40px; font-size: 14px; color: #64748b;">-->
+<!--        Если проблема повторяется — напишите в поддержку-->
+<!--    </p>-->
+</div>
+
+<script>
+    function restartApp() {
+        // Сообщаем Flutter, что нужно полностью перезапустить WebView
+        if (window.FlutterWebView && window.FlutterWebView.postMessage) {
+            window.FlutterWebView.postMessage("RESTART_APP");
+        } else {
+            // Fallback на случай, если канал ещё не готов
+            window.location.reload();
+        }
+    }
+
+    function goHome() {
+        window.location.href = "file:///android_asset/flutter_assets/assets/web/index.html";
+    }
+</script>
+</body>
+</html>

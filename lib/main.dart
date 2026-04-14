@@ -37,71 +37,151 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFFFFFFF))
 
+    // === ЕДИНСТВЕННЫЙ NavigationDelegate ===
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (NavigationRequest request) async {
-            final url = request.url.toLowerCase();
+            final String url = request.url.toLowerCase();
             print('🔄 NavigationRequest: $url');
 
-            // Разрешаем всё локальное
-            if (url.startsWith('asset:///') ||
-                url.contains('local') ||
+            if (url.startsWith('file:///android_asset/') ||
+                url.startsWith('asset:///') ||
                 url.endsWith('.html') ||
                 url.endsWith('.js') ||
-                url.endsWith('.css')) {
-              print('✅ Allowed local resource');
-              return NavigationDecision.navigate;
-            }
-
-            // Разрешаем свои домены
-            if (url.startsWith('https://gl.kuraj-prodaj.com') ||
+                url.endsWith('.css') ||
+                url.endsWith('.svg') ||
+                url.endsWith('.png') ||
+                url.endsWith('.jpg') ||
+                url.endsWith('.jpeg') ||
+                // url.startsWith('https://kuraj-prodaj.com') ||
+                url.startsWith('https://gl.kuraj-prodaj.com') ||
                 url.startsWith('https://gl-auth.0422.ru') ||
+                // url.startsWith('https://mechtatel.team') ||
                 url.startsWith('https://kpt.kuraj-prodaj.com')) {
+
+              print('✅ Allowed: $url');
               return NavigationDecision.navigate;
             }
 
-            // Всё остальное — в браузер
+            // Всё остальное — во внешний браузер
+            print('→ Открываем во внешнем браузере: $url');
             await _openInExternalBrowser(request.url);
             return NavigationDecision.prevent;
           },
 
-          onWebResourceError: (WebResourceError error) {
+          onWebResourceError: (WebResourceError error) async {
             print('╔══════════════════════════════════════════════════════════════');
             print('║ WEBVIEW RESOURCE ERROR');
-            print('╠══════════════════════════════════════════════════════════════');
-            print('║ Error Code     : ${error.errorCode}');
-            print('║ Description    : ${error.description}');
-            print('║ Failing URL    : ${error.url ?? "unknown"}');
-            print('║ Error Type     : ${error.errorType}');
-            print('║ Is Main Frame  : ${error.isForMainFrame}');
+            print('║ Code      : ${error.errorCode}');
+            print('║ Desc      : ${error.description}');
+            print('║ URL       : ${error.url ?? "unknown"}');
+            print('║ MainFrame : ${error.isForMainFrame}');
             print('╚══════════════════════════════════════════════════════════════');
 
-            if (mounted) {
-              setState(() => hasError = true);
+            if (!mounted) return;
+
+            // Ловим DNS и сетевые ошибки
+            if (error.errorCode == -2 ||
+                error.errorCode == -3 ||
+                error.errorCode == -6 ||
+                error.errorCode == -102 ||
+                error.errorCode == -104 ||
+                error.errorCode == -109 ||
+                error.description.toLowerCase().contains('name not resolved') ||
+                error.description.toLowerCase().contains('net::err_name_not_resolved')) {
+
+              print('→ Обнаружена ошибка ERR_NAME_NOT_RESOLVED');
+
+              try {
+                final String errorHtml = await rootBundle.loadString('assets/web/error.html');
+                await controller.loadHtmlString(errorHtml);
+                print('→ Кастомная error.html успешно загружена');
+                return;
+              } catch (e) {
+                print('→ Не удалось загрузить error.html: $e');
+              }
+            }
+
+            // Если ошибка на главном фрейме — показываем заглушку
+            if (error.isForMainFrame == true) {
+              if (mounted) setState(() => hasError = true);
             }
           },
 
-          onPageStarted: (String url) => print('📄 Page started: $url'),
-          onPageFinished: (String url) => print('✅ Page finished: $url'),
+          onPageFinished: (String url) async {
+            print('✅ Page finished: $url');
+
+            // Хак против ORB (оставляем)
+            await controller.runJavaScript('''
+            if (window.ORBWorkaround === undefined) {
+              console.log("[ORB Workaround] Injecting...");
+              window.ORBWorkaround = true;
+              const originalFetch = window.fetch;
+              window.fetch = function(...args) {
+                return originalFetch(...args);
+              };
+            }
+          ''');
+          },
         ),
       );
 
-    // Load local HTML instead of remote URL
+    // === Android-specific настройки ===
+    if (controller.platform is AndroidWebViewController) {
+      final androidController = controller.platform as AndroidWebViewController;
+      androidController.setAllowFileAccess(true);
+      androidController.setAllowContentAccess(true);
+
+      controller.addJavaScriptChannel(
+        'FlutterWebView',
+        onMessageReceived: (JavaScriptMessage message) async {
+          print('📨 FlutterWebView message: ${message.message}');
+
+          if (message.message == "RESTART_APP" || message.message == "ERROR_PAGE_RETRY") {
+            if (!mounted) return;
+
+            print('🔄 Получена команда на перезапуск приложения');
+
+            setState(() => hasError = false);
+
+            // Полный рестарт — перезагружаем локальный index.html
+            await _loadLocalWebApp();
+          }
+        },
+      );
+    }
+
+    // Загружаем стартовую страницу
     _loadLocalWebApp();
   }
 
+  // Future<void> _loadLocalWebApp() async {
+  //   try {
+  //     final String html = await rootBundle.loadString('assets/web/index.html');
+
+  //     await controller.loadHtmlString(
+  //       html,
+  //       baseUrl: 'file:///android_asset/flutter_assets/assets/web/', // ← Это важно!
+  //     );
+
+  //     print('[WebView] Successfully loaded via loadHtmlString + baseUrl');
+  //   } catch (e) {
+  //     print('[WebView] Failed to load local HTML: $e');
+  //     await controller.loadRequest(Uri.parse("https://gl.kuraj-prodaj.com"));
+  //   }
+  // }
+
   Future<void> _loadLocalWebApp() async {
     try {
-      final String html = await rootBundle.loadString('assets/web/index.html');
+      print('[WebView] Trying file:///android_asset/flutter_assets/assets/web/index.html');
 
-      await controller.loadHtmlString(
-        html,
-        baseUrl: 'file:///android_asset/flutter_assets/assets/web/', // ← Это важно!
+      await controller.loadRequest(
+        Uri.parse('file:///android_asset/flutter_assets/assets/web/index.html'),
       );
 
-      print('[WebView] Successfully loaded via loadHtmlString + baseUrl');
+      print('[WebView] Successfully loaded via file:///android_asset/');
     } catch (e) {
-      print('[WebView] Failed to load local HTML: $e');
+      print('[WebView] Failed to load local: $e');
       await controller.loadRequest(Uri.parse("https://gl.kuraj-prodaj.com"));
     }
   }

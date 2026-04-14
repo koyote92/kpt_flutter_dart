@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ошибка</title>
+    <style>
+        body {
+            margin: 0; padding: 20px;
+            background: #efe7dc;
+            font-family: -apple-system, sans-serif;
+            text-align: center;
+            color: #2a2a2a;
+        }
+        .icon { font-size: 80px; margin: 40px 0 20px; }
+        h2 { color: #e9721c; margin: 10px 0; }
+        p { color: #555; line-height: 1.5; max-width: 320px; margin: 0 auto 30px; }
+        button {
+            background: #e9721c;
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 17px;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="icon">📡</div>
+<h2>Нет доступа к сервису авторизации</h2>
+<p>Проверьте Wi-Fi, мобильный интернет, отключите VPN и попробуйте снова.</p>
+<button onclick="retry()">Повторить попытку</button>
+
+<script>
+    function retry() {
+        window.location.reload();
+    }
+</script>
+</body>
+</html>

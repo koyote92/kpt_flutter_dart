@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Перейти к mechtatel.team</title>
+    <style>
+        body {
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 360px;
+        }
+        .icon {
+            font-size: 68px;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 24px;
+            margin: 0 0 12px 0;
+            color: #e9721c;
+        }
+        p {
+            color: #cbd5e1;
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+        button {
+            width: 100%;
+            padding: 16px;
+            margin: 10px 0;
+            font-size: 17px;
+            font-weight: 700;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-site {
+            background: #e9721c;
+            color: white;
+            box-shadow: 0 6px 0 #c15d15;
+        }
+        .btn-restart {
+            background: transparent;
+            border: 2px solid #64748b;
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="icon">🌐</div>
+    <h1>Перейти на сайт</h1>
+    <p>Нажмите кнопку ниже, чтобы открыть полный сайт</p>
+
+    <!-- ←←← СЮДА ВПИШИ СВОЙ САЙТ ←←← -->
+    <button onclick="goToSite()" class="btn-site">
+        Перейти на сайт
+    </button>
+
+    <button onclick="restartApp()" class="btn-restart">
+        Назад
+    </button>
+</div>
+
+<script>
+    // Переход на твой сайт
+    function goToSite() {
+        window.location.href = "https://mechtatel.team";
+    }
+
+    // Строгий рестарт приложения через Flutter
+    function restartApp() {
+        if (window.FlutterWebView && window.FlutterWebView.postMessage) {
+            window.FlutterWebView.postMessage("RESTART_APP");
+        } else {
+            // Если Flutter-канал не готов — просто перезагружаем страницу
+            window.location.reload(true);
+        }
+    }
+</script>
+</body>
+</html>

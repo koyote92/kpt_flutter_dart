@@ -26,17 +26,18 @@ flutter:
   assets:
     - assets/web/                    # ← эта строка нужна
     - assets/web/index.html          # ← явно укажи главный файл
+    - assets/web/error.html          # ← явно укажи главный файл
     - assets/web/kpt_start.html      # ← и все важные файлы
-    - assets/web/client.js
+    - assets/web/info_12.html
+    - assets/web/info_mechtatel.html
     - assets/web/style.css
     - assets/web/bootstrap/css/
     - assets/web/bootstrap/js/
     - assets/web/img/
-    - assets/web/start_img/
     - assets/web/icons/
     - assets/web/webfonts/
 
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "icon_3_512.png"
+  image_path: "icon_KPT_GL.png"
