@@ -28,6 +28,11 @@ flutter:
     - assets/web/index.html          # ← явно укажи главный файл
     - assets/web/error.html          # ← явно укажи главный файл
     - assets/web/kpt_start.html      # ← и все важные файлы
+    - assets/web/kpt_bye_old.html
+    - assets/web/kpt_bye_FULL.html
+    - assets/web/kpt_bye.html
+    - assets/web/index_FULL.html
+    - assets/web/index_tmp.html
     - assets/web/info_12.html
     - assets/web/info_mechtatel.html
     - assets/web/style.css

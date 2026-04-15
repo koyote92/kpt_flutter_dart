@@ -1,4 +1,4 @@
-package com.example.webview_app
+package com.kpt.gl
 
 import io.flutter.embedding.android.FlutterActivity
 

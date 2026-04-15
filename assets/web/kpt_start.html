@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Kurazh Sales Trainer</title>
+    <title>Кураж Продаж Тренажер (GL версия)</title>
     <link rel="stylesheet" href="style.css?v=2.1">
-    <link rel="stylesheet" href="../../../Desktop/kuraj-app-gl/public/assets/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <script src="../../../Desktop/kuraj-app-gl/public/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="assets/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- <script src="telegram-web-app.js"></script> -->
     <script>
 //      document.addEventListener('contextmenu', function(e) {         
 //		e.preventDefault();   // This stops the browser context menu
 //      });
     </script>
-    <link rel="manifest" href="../../../Desktop/kuraj-app-gl/public/manifest.webmanifest">
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="apple-touch-icon" sizes="192x192" href="/icons/kp_icon_192.png">
     <meta name="theme-color" content="#1976d2">
     <meta name="mobile-web-app-capable" content="yes">
@@ -20,6 +20,7 @@
 <body>
     <div id="app">
 <header class="header" style="display: flex; flex-direction: column; gap: 8px;">
+    <!-- <img_disabled src="none.jpg">  -->
     <!-- Полоса прогресса -->
     <div class="progress-bar-container" style="width: 100%; margin: 0;">
         <div class="progress-bar" style="width: 0%;"></div>
@@ -224,11 +225,13 @@
                 </div>
                 <!-- РУБАШКА (то, что видим СРАЗУ) -->
                 <div class="card-face card-back">
-                    <img src="../../../Desktop/kuraj-app-gl/public/img/instramet_final%201.jpeg">
+                    <img src="img/instramet_final%201.jpeg">
+		    
                 </div>
             </div>
         </div>
-        <div id="promo-text" class="promo-quote"></div>
+        <!-- <div id="promo-text" class="promo-quote">Задай себе вопрос "Что мне поможет продавать больше  и легче сегодня?"<br>Переверни карту и получи подсказку.</div> -->
+        <div id="promo-text" class="promo-alexmay">Задай себе вопрос "Что мне поможет продавать больше  и легче сегодня?"<br>Переверни карту и получи подсказку.</div>
         <button id="promo-flip-btn" class="promo-action-btn btn-blue">Перевернуть</button>
         <button id="btn-close-app" class="promo-action-btn btn-blue hidden">В рейтинг</button>
     </div>
@@ -250,7 +253,7 @@
                 <div class="card-scene">
                     <div class="card-object" id="flip-card">
                         <div class="card-face card-front"><img id="metacard-front-img" src=""></div>
-                        <div class="card-face card-back"><img src="../../../Desktop/kuraj-app-gl/public/start_img/metacard_start%201.jpeg"></div>
+                        <div class="card-face card-back"><img src="start_img/metacard_start%201.jpeg"></div>
                     </div>
                 </div>
                 <button id="start-btn" class="promo-action-btn btn-blue">Открыть карту</button>
