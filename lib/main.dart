@@ -3,8 +3,24 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ←←← Ручная инициализация Firebase (вставь свои данные)
+  await Firebase.initializeApp(
+    options: const FirebaseOptions(
+      apiKey: "AIzaSyD2xdIAMZfiV3SsRxYDsdD4lsIy40xR04A",           // из current_key
+      appId: "1:719323150827:android:6cb7abe58ce3d804e5c1ae",   // mobilesdk_app_id
+      messagingSenderId: "719323150827",                  // project_number
+      projectId: "kpt-gl",                                // project_id
+    ),
+  );
+
   WebViewPlatform.instance = AndroidWebViewPlatform();
 
   runApp(const MaterialApp(
@@ -25,6 +41,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
 
   // Состояние ошибки
   bool hasError = false;
+
+  int? _currentUserId;
 
   @override
   bool get wantKeepAlive => true;
@@ -54,7 +72,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 url.endsWith('.jpg') ||
                 url.endsWith('.jpeg') ||
                 // url.startsWith('https://kuraj-prodaj.com') ||
-                url.startsWith('https://gl.kuraj-prodaj.com') ||
+                url.startsWith('https://gl.kuraj-prodaj.com/index') ||
+                url.startsWith('https://gl.kuraj-prodaj.com/kpt_start') ||
                 url.startsWith('https://gl-auth.0422.ru') ||
                 // url.startsWith('https://mechtatel.team') ||
                 url.startsWith('https://kpt.kuraj-prodaj.com')) {
@@ -153,23 +172,66 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
 
     // Загружаем стартовую страницу
     _loadLocalWebApp();
+
+    _generateRandomUserIdAndRegisterFCM();
   }
 
-  // Future<void> _loadLocalWebApp() async {
-  //   try {
-  //     final String html = await rootBundle.loadString('assets/web/index.html');
+  // ====================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ======================
+  Future<void> _generateRandomUserIdAndRegisterFCM() async {
+    _currentUserId = 10000 + DateTime.now().millisecondsSinceEpoch % 90000;
+    print('👤 Сгенерирован тестовый user_id: $_currentUserId');
 
-  //     await controller.loadHtmlString(
-  //       html,
-  //       baseUrl: 'file:///android_asset/flutter_assets/assets/web/', // ← Это важно!
-  //     );
+    try {
+      final messaging = FirebaseMessaging.instance;
 
-  //     print('[WebView] Successfully loaded via loadHtmlString + baseUrl');
-  //   } catch (e) {
-  //     print('[WebView] Failed to load local HTML: $e');
-  //     await controller.loadRequest(Uri.parse("https://gl.kuraj-prodaj.com"));
-  //   }
-  // }
+      // Запрашиваем разрешение (это должно показать диалог)
+      final NotificationSettings settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      print('Разрешение на уведомления: ${settings.authorizationStatus}');
+
+      if (settings.authorizationStatus != AuthorizationStatus.authorized) {
+        print('❌ Пользователь не дал разрешение');
+        return;
+      }
+
+      // Получаем токен
+      final token = await messaging.getToken();
+      if (token == null || token.isEmpty) {
+        print('❌ Токен не получен');
+        return;
+      }
+
+      print('🔥 FCM Token получен (первые 50 символов): ${token.substring(0, 50)}...');
+
+      // Отправляем на сервер
+      final response = await http.post(
+        Uri.parse('https://gl-auth.0422.ru/fcm/register-token'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          "user_id": _currentUserId,
+          "fcm_token": token,
+          "platform": "android",
+          "device_name": "WebView App (Test)",
+        }),
+      );
+
+      print('Сервер ответил кодом: ${response.statusCode}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ Токен успешно отправлен на сервер!');
+      } else {
+        print('⚠️ Ошибка от сервера: ${response.body}');
+      }
+    } catch (e, stack) {
+      print('❌ Критическая ошибка при работе с FCM: $e');
+      print(stack);
+    }
+  }
 
   Future<void> _loadLocalWebApp() async {
     try {
