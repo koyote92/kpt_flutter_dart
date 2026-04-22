@@ -14,10 +14,10 @@ void main() async {
   // ←←← Ручная инициализация Firebase (вставь свои данные)
   await Firebase.initializeApp(
     options: const FirebaseOptions(
-      apiKey: "AIzaSyD2xdIAMZfiV3SsRxYDsdD4lsIy40xR04A",           // из current_key
-      appId: "1:719323150827:android:6cb7abe58ce3d804e5c1ae",   // mobilesdk_app_id
-      messagingSenderId: "719323150827",                  // project_number
-      projectId: "kpt-gl",                                // project_id
+      apiKey: "AIzaSyDYh443MCVeiuM4Kc6rtLJrZOmABsWYzBE",           // из current_key
+      appId: "1:263810602183:android:3b91a432544f36a7901ae2",   // mobilesdk_app_id
+      messagingSenderId: "263810602183",                  // project_number
+      projectId: "kpt-origin",                                // project_id
     ),
   );
 
@@ -72,11 +72,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 url.endsWith('.jpg') ||
                 url.endsWith('.jpeg') ||
                 // url.startsWith('https://kuraj-prodaj.com') ||
-                url.startsWith('https://gl.kuraj-prodaj.com/index') ||
-                url.startsWith('https://gl.kuraj-prodaj.com/kpt_start') ||
-                url.startsWith('https://gl-auth.0422.ru') ||
+                url.startsWith('https://auth.0422.ru') ||
                 // url.startsWith('https://mechtatel.team') ||
-                url.startsWith('https://kpt.kuraj-prodaj.com')) {
+                url.startsWith('https://app.kuraj-prodaj.com')) {
 
               print('✅ Allowed: $url');
               return NavigationDecision.navigate;
@@ -210,7 +208,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
 
       // Отправляем на сервер
       final response = await http.post(
-        Uri.parse('https://gl-auth.0422.ru/fcm/register-token'),
+        Uri.parse('https://auth.0422.ru/fcm/register-token'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "user_id": _currentUserId,
@@ -244,7 +242,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       print('[WebView] Successfully loaded via file:///android_asset/');
     } catch (e) {
       print('[WebView] Failed to load local: $e');
-      await controller.loadRequest(Uri.parse("https://gl.kuraj-prodaj.com"));
+      await controller.loadRequest(Uri.parse("https://kpt.kuraj-prodaj.com"));
     }
   }
 

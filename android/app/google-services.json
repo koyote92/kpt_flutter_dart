@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "719323150827",
-    "project_id": "kpt-gl",
-    "storage_bucket": "kpt-gl.firebasestorage.app"
+    "project_number": "263810602183",
+    "project_id": "kpt-origin",
+    "storage_bucket": "kpt-origin.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:719323150827:android:6cb7abe58ce3d804e5c1ae",
+        "mobilesdk_app_id": "1:263810602183:android:3b91a432544f36a7901ae2",
         "android_client_info": {
-          "package_name": "com.kpt.gl"
+          "package_name": "com.kpt.origin"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyD2xdIAMZfiV3SsRxYDsdD4lsIy40xR04A"
+          "current_key": "AIzaSyDYh443MCVeiuM4Kc6rtLJrZOmABsWYzBE"
         }
       ],
       "services": {

@@ -1,4 +1,4 @@
-package com.kpt.gl
+package com.kpt.origin
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,5 +1,5 @@
 name: webview_app
-description: "Тренажёр Кураж Продаж GL"
+description: "Тренажёр Кураж Продаж"
 version: 1.0.0+1
 
 environment:
@@ -27,21 +27,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/web/                    # ← эта строка нужна
-    - assets/web/index.html          # ← явно укажи главный файл
-    - assets/web/error.html          # ← явно укажи главный файл
-    - assets/web/kpt_start.html      # ← и все важные файлы
-    - assets/web/kpt_bye_old.html
-    - assets/web/kpt_bye_FULL.html
-    - assets/web/kpt_bye.html
-    - assets/web/index_FULL.html
-    - assets/web/index_tmp.html
-    - assets/web/info_12.html
-    - assets/web/info_mechtatel.html
-    - assets/web/privacy.html
-    - assets/web/style.css
-    - assets/web/bootstrap/css/
-    - assets/web/bootstrap/js/
+    - assets/web/
+    - assets/web/bootstrap/
     - assets/web/img/
     - assets/web/icons/
     - assets/web/webfonts/
@@ -49,4 +36,4 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "icon_KPT_GL.png"
+  image_path: "icon_3_512.png"

@@ -96,7 +96,7 @@
     <!-- МГНОВЕННАЯ проверка — если политика уже принята, сразу редирект (без мелькания страницы) -->
     <script>
         if (localStorage.getItem('is_privacy_accepted') === 'true') {
-            window.location.replace('https://gl.kuraj-prodaj.com/kpt_start.html');
+            window.location.replace('https://app.kuraj-prodaj.com/kpt_start.html');
         }
     </script>
 </head>
@@ -184,7 +184,7 @@
     // Принять политику
     function acceptPrivacy() {
         localStorage.setItem('is_privacy_accepted', 'true');
-        window.location.href = 'https://gl.kuraj-prodaj.com/kpt_start.html';
+        window.location.href = 'https:/app.kuraj-prodaj.com/kpt_start.html';
     }
 
     // Отклонить политику
