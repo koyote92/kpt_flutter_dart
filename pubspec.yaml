@@ -1,6 +1,6 @@
 name: webview_app
-description: "Тренажёр Кураж Продаж"
-version: 1.0.0+1
+description: "Кураж Продаж Тренажёр"
+version: 1.0.1+2
 
 environment:
   sdk: ^3.11.1
@@ -28,7 +28,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/web/
-    - assets/web/bootstrap/
+    - assets/web/bootstrap/css/
+    - assets/web/bootstrap/js/
     - assets/web/img/
     - assets/web/icons/
     - assets/web/webfonts/
