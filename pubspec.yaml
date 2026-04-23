@@ -1,6 +1,6 @@
 name: webview_app
-description: "Тренажёр Кураж Продаж GL"
-version: 1.0.0+1
+description: "Кураж Продаж GL"
+version: 1.0.1+2
 
 environment:
   sdk: ^3.11.1
@@ -27,19 +27,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/web/                    # ← эта строка нужна
-    - assets/web/index.html          # ← явно укажи главный файл
-    - assets/web/error.html          # ← явно укажи главный файл
-    - assets/web/kpt_start.html      # ← и все важные файлы
-    - assets/web/kpt_bye_old.html
-    - assets/web/kpt_bye_FULL.html
-    - assets/web/kpt_bye.html
-    - assets/web/index_FULL.html
-    - assets/web/index_tmp.html
-    - assets/web/info_12.html
-    - assets/web/info_mechtatel.html
-    - assets/web/privacy.html
-    - assets/web/style.css
+    - assets/web/
     - assets/web/bootstrap/css/
     - assets/web/bootstrap/js/
     - assets/web/img/

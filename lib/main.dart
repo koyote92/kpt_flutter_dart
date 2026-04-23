@@ -71,11 +71,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 url.endsWith('.png') ||
                 url.endsWith('.jpg') ||
                 url.endsWith('.jpeg') ||
-                // url.startsWith('https://kuraj-prodaj.com') ||
                 url.startsWith('https://gl.kuraj-prodaj.com/index') ||
                 url.startsWith('https://gl.kuraj-prodaj.com/kpt_start') ||
                 url.startsWith('https://gl-auth.0422.ru') ||
-                // url.startsWith('https://mechtatel.team') ||
                 url.startsWith('https://kpt.kuraj-prodaj.com')) {
 
               print('✅ Allowed: $url');
