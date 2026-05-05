@@ -7,6 +7,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +44,8 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   // Состояние ошибки
   bool hasError = false;
 
-  int? _currentUserId;
+  String? _fcmToken;
+  int? _realUserId;        // ← настоящий userId из localStorage
 
   @override
   bool get wantKeepAlive => true;
@@ -152,16 +155,33 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       controller.addJavaScriptChannel(
         'FlutterWebView',
         onMessageReceived: (JavaScriptMessage message) async {
-          print('📨 FlutterWebView message: ${message.message}');
+          final String raw = message.message;
+          print('📨 FlutterWebView message: $raw');
 
-          if (message.message == "RESTART_APP" || message.message == "ERROR_PAGE_RETRY") {
+          // === 1. Пытаемся разобрать как JSON (REGISTER_FCM) ===
+          try {
+            final data = jsonDecode(raw);
+            if (data is Map<String, dynamic> && data['type'] == "REGISTER_FCM") {
+              final int userId = data['userId'];
+              _realUserId = userId;
+              print('✅ Получен реальный userId из WebView: $userId');
+
+              if (_fcmToken != null) {
+                await _registerFCMToken(userId, _fcmToken!);
+              } else {
+                print('⚠️ FCM токен ещё не получен — сохранили userId');
+              }
+              return; // выходим, дальше не нужно
+            }
+          } catch (_) {
+            // Это не JSON → значит, старое строковое сообщение
+          }
+
+          // === 2. Обработка старых строковых команд ===
+          if (raw == "RESTART_APP" || raw == "ERROR_PAGE_RETRY") {
             if (!mounted) return;
-
-            print('🔄 Получена команда на перезапуск приложения');
-
+            print('🔄 Получена команда на перезапуск');
             setState(() => hasError = false);
-
-            // Полный рестарт — перезагружаем локальный index.html
             await _loadLocalWebApp();
           }
         },
@@ -171,63 +191,75 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     // Загружаем стартовую страницу
     _loadLocalWebApp();
 
-    _generateRandomUserIdAndRegisterFCM();
+    _initFCM();
   }
 
-  // ====================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ======================
-  Future<void> _generateRandomUserIdAndRegisterFCM() async {
-    _currentUserId = 10000 + DateTime.now().millisecondsSinceEpoch % 90000;
-    print('👤 Сгенерирован тестовый user_id: $_currentUserId');
-
+  // ==================== НОВЫЙ МЕТОД ====================
+  Future<void> _initFCM() async {
     try {
       final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-      // Запрашиваем разрешение (это должно показать диалог)
-      final NotificationSettings settings = await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
+      await Future.delayed(const Duration(milliseconds: 800));
 
-      print('Разрешение на уведомления: ${settings.authorizationStatus}');
-
-      if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-        print('❌ Пользователь не дал разрешение');
-        return;
-      }
-
-      // Получаем токен
       final token = await messaging.getToken();
       if (token == null || token.isEmpty) {
-        print('❌ Токен не получен');
+        print('❌ FCM token не получен');
         return;
       }
 
-      print('🔥 FCM Token получен (первые 50 символов): ${token.substring(0, 50)}...');
+      _fcmToken = token;
+      print('🔥 FCM Token получен: ${token.substring(0, 40)}...');
 
-      // Отправляем на сервер
+      // Если userId уже пришёл из WebView — сразу регистрируем
+      if (_realUserId != null) {
+        await _registerFCMToken(_realUserId!, token);
+      }
+    } catch (e) {
+      print('❌ Ошибка инициализации FCM: $e');
+    }
+  }
+
+// ==================== РЕГИСТРАЦИЯ НА ТВОЁМ СЕРВЕРЕ ====================
+  Future<void> _registerFCMToken(int userId, String token) async {
+    try {
+      final deviceInfo = DeviceInfoPlugin();
+      String deviceId = "unknown";
+
+      if (Platform.isAndroid) {
+        final androidInfo = await deviceInfo.androidInfo;
+
+        // Формируем читаемый device_id
+        deviceId = "${androidInfo.brand}-${androidInfo.model}-Android${androidInfo.version.release}"
+            .replaceAll(" ", "_")                    // убираем пробелы
+            .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), ''); // оставляем только безопасные символы
+      }
+      else if (Platform.isIOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        deviceId = "${iosInfo.model}-iOS${iosInfo.systemVersion}";
+      }
+
       final response = await http.post(
-        Uri.parse('https://auth.0422.ru/fcm/register-token'),
+        Uri.parse('https://app-dev.0422.ru/api/fcm/register-token'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          "user_id": _currentUserId,
+          "user_id": userId,
           "fcm_token": token,
-          "platform": "android",
-          "device_name": "WebView App (Test)",
+          "platform": Platform.isAndroid ? "android" : "ios",
+          "device_name": deviceId,           // для удобства в device_name тоже кладём
+          "device_id": deviceId,             // ← главное, что ты просил
+          "device_manufacturer": Platform.isAndroid ? (await deviceInfo.androidInfo).manufacturer : null,
         }),
       );
 
-      print('Сервер ответил кодом: ${response.statusCode}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Токен успешно отправлен на сервер!');
+        print('✅ Токен зарегистрирован');
+        print('📱 device_id → $deviceId');
       } else {
-        print('⚠️ Ошибка от сервера: ${response.body}');
+        print('⚠️ Ошибка сервера: ${response.statusCode}');
       }
-    } catch (e, stack) {
-      print('❌ Критическая ошибка при работе с FCM: $e');
-      print(stack);
+    } catch (e) {
+      print('❌ Ошибка при регистрации FCM: $e');
     }
   }
 
