@@ -7,6 +7,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:io' show Platform;
+import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,22 +74,20 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 url.endsWith('.png') ||
                 url.endsWith('.jpg') ||
                 url.endsWith('.jpeg') ||
-                // url.startsWith('https://kuraj-prodaj.com') ||
                 url.startsWith('https://auth.0422.ru') ||
-                // url.startsWith('https://mechtatel.team') ||
                 url.startsWith('https://app.kuraj-prodaj.com')) {
 
               print('✅ Allowed: $url');
               return NavigationDecision.navigate;
             }
 
-            // Всё остальное — во внешний браузер
             print('→ Открываем во внешнем браузере: $url');
             await _openInExternalBrowser(request.url);
             return NavigationDecision.prevent;
           },
 
           onWebResourceError: (WebResourceError error) async {
+            // ... твой текущий код onWebResourceError без изменений ...
             print('╔══════════════════════════════════════════════════════════════');
             print('║ WEBVIEW RESOURCE ERROR');
             print('║ Code      : ${error.errorCode}');
@@ -97,7 +98,6 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
 
             if (!mounted) return;
 
-            // Ловим DNS и сетевые ошибки
             if (error.errorCode == -2 ||
                 error.errorCode == -3 ||
                 error.errorCode == -6 ||
@@ -106,8 +106,6 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 error.errorCode == -109 ||
                 error.description.toLowerCase().contains('name not resolved') ||
                 error.description.toLowerCase().contains('net::err_name_not_resolved')) {
-
-              print('→ Обнаружена ошибка ERR_NAME_NOT_RESOLVED');
 
               try {
                 final String errorHtml = await rootBundle.loadString('assets/web/error.html');
@@ -119,7 +117,6 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
               }
             }
 
-            // Если ошибка на главном фрейме — показываем заглушку
             if (error.isForMainFrame == true) {
               if (mounted) setState(() => hasError = true);
             }
@@ -154,15 +151,31 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         onMessageReceived: (JavaScriptMessage message) async {
           print('📨 FlutterWebView message: ${message.message}');
 
+          // === ТВОЙ СТАРЫЙ КОД (оставляем как было) ===
           if (message.message == "RESTART_APP" || message.message == "ERROR_PAGE_RETRY") {
             if (!mounted) return;
 
             print('🔄 Получена команда на перезапуск приложения');
 
             setState(() => hasError = false);
-
-            // Полный рестарт — перезагружаем локальный index.html
             await _loadLocalWebApp();
+            return;   // ← выходим, чтобы не обрабатывать дальше
+          }
+
+          // === НОВОЕ: обработка сообщения от JS (REGISTER_FCM) ===
+          if (message.message.contains("REGISTER_FCM")) {
+            try {
+              final data = jsonDecode(message.message);
+              final userId = data['userId'];
+
+              if (userId != null) {
+                _currentUserId = userId is int ? userId : int.tryParse(userId.toString());
+                print('✅ Получен userId из JS: $_currentUserId');
+                await _registerFCMToken();
+              }
+            } catch (e) {
+              print('❌ Не удалось распарсить REGISTER_FCM: $e');
+            }
           }
         },
       );
@@ -170,19 +183,16 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
 
     // Загружаем стартовую страницу
     _loadLocalWebApp();
-
-    _generateRandomUserIdAndRegisterFCM();
   }
 
   // ====================== ИСПРАВЛЕННАЯ ФУНКЦИЯ ======================
-  Future<void> _generateRandomUserIdAndRegisterFCM() async {
-    _currentUserId = 10000 + DateTime.now().millisecondsSinceEpoch % 90000;
-    print('👤 Сгенерирован тестовый user_id: $_currentUserId');
+  Future<void> _registerFCMToken() async {
+    if (_currentUserId == null) return;
 
     try {
       final messaging = FirebaseMessaging.instance;
 
-      // Запрашиваем разрешение (это должно показать диалог)
+      // Запрос разрешения (как было в твоём исходном коде)
       final NotificationSettings settings = await messaging.requestPermission(
         alert: true,
         badge: true,
@@ -193,41 +203,51 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       print('Разрешение на уведомления: ${settings.authorizationStatus}');
 
       if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-        print('❌ Пользователь не дал разрешение');
+        print('❌ Пользователь не дал разрешение на уведомления');
         return;
       }
 
-      // Получаем токен
       final token = await messaging.getToken();
       if (token == null || token.isEmpty) {
-        print('❌ Токен не получен');
+        print('❌ FCM Token не получен');
         return;
       }
 
-      print('🔥 FCM Token получен (первые 50 символов): ${token.substring(0, 50)}...');
+      print('🔥 FCM Token получен');
 
-      // Отправляем на сервер
+      // Получаем информацию об устройстве
+      String deviceName = "WebView App (Unknown)";
+      String deviceId = "";                     // ← новое поле
+
+      if (Platform.isAndroid) {
+        final deviceInfo = DeviceInfoPlugin();
+        final androidInfo = await deviceInfo.androidInfo;
+
+        deviceName = "${androidInfo.manufacturer} ${androidInfo.model} (Android ${androidInfo.version.release})";
+        deviceId = androidInfo.id;              // Android ID — уникальный для устройства
+      }
+
+      // Отправляем ровно то, что требует схема FCMTokenRegister
       final response = await http.post(
         Uri.parse('https://auth.0422.ru/fcm/register-token'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "user_id": _currentUserId,
           "fcm_token": token,
+          "device_id": deviceId,           // ← добавлено
           "platform": "android",
-          "device_name": "WebView App (Test)",
+          "device_name": deviceName,
         }),
       );
 
       print('Сервер ответил кодом: ${response.statusCode}');
-
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Токен успешно отправлен на сервер!');
+        print('✅ Токен успешно отправлен (с device_id)');
       } else {
-        print('⚠️ Ошибка от сервера: ${response.body}');
+        print('⚠️ Сервер вернул ошибку: ${response.body}');
       }
-    } catch (e, stack) {
-      print('❌ Критическая ошибка при работе с FCM: $e');
-      print(stack);
+    } catch (e) {
+      print('❌ Ошибка при регистрации FCM: $e');
     }
   }
 

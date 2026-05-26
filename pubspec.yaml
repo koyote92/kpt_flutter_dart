@@ -9,6 +9,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  device_info_plus: ^10.1.0
   url_launcher: ^6.3.0
   cupertino_icons: ^1.0.8
   webview_flutter: ^4.13.1
