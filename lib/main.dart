@@ -240,7 +240,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       }
 
       final response = await http.post(
-        Uri.parse('https://app-dev.0422.ru/api/fcm/register-token'),
+        Uri.parse('https://auth.0422.ru/fcm/register-token'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           "user_id": userId,
