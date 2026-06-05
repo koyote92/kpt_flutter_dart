@@ -4,6 +4,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+@Suppress("UnstableApiUsage")
+
 android {
     namespace = "com.kurajprodaj.trenazher"
     compileSdk = flutter.compileSdkVersion
@@ -38,6 +40,18 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+        }
+    }
+
+    bundle {
+        language {
+            enableSplit = false        // Отключаем разделение по языкам (ru, en и т.д.)
+        }
+        density {
+            enableSplit = false        // Отключаем разделение по плотности экрана (xxhdpi и т.д.)
+        }
+        abi {
+            enableSplit = true         // Архитектуры (arm64) лучше оставить включёнными
         }
     }
 }

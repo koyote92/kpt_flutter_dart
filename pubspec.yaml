@@ -1,6 +1,6 @@
 name: webview_app
 description: "Кураж Продаж Тренажёр"
-version: 1.0.3+4
+version: 1.0.4+5
 
 environment:
   sdk: ^3.11.1
