@@ -16,10 +16,10 @@ void main() async {
   // ←←← Ручная инициализация Firebase (вставь свои данные)
   await Firebase.initializeApp(
     options: const FirebaseOptions(
-      apiKey: "AIzaSyDYh443MCVeiuM4Kc6rtLJrZOmABsWYzBE",           // из current_key
-      appId: "1:263810602183:android:3b91a432544f36a7901ae2",   // mobilesdk_app_id
-      messagingSenderId: "263810602183",                  // project_number
-      projectId: "kpt-origin",                                // project_id
+      apiKey: "AIzaSyAk9KnP5T89lyzAMAr9WXvlavjMXfk7Zxs",
+      appId: "1:685735136821:android:731cf4ff5186b8d5aeab7c",
+      messagingSenderId: "685735136821",
+      projectId: "kpt-gp",
     ),
   );
 

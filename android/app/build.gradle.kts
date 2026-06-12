@@ -51,7 +51,7 @@ android {
             enableSplit = false        // Отключаем разделение по плотности экрана (xxhdpi и т.д.)
         }
         abi {
-            enableSplit = true         // Архитектуры (arm64) лучше оставить включёнными
+            enableSplit = false         // Архитектуры (arm64) лучше оставить включёнными
         }
     }
 }
