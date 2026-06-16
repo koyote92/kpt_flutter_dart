@@ -12,9 +12,7 @@ dependencies:
   url_launcher: ^6.3.0
   cupertino_icons: ^1.0.8
   webview_flutter: ^4.13.1
-  webview_flutter_android: ^4.2.0
   flutter_launcher_icons: ^0.14.4
-  http: ^1.2.2
   path_provider: ^2.1.5
 
 dev_dependencies:
@@ -34,6 +32,6 @@ flutter:
     - assets/web/webfonts/
 
 flutter_launcher_icons:
-  android: true
-  ios: false
+  android: false
+  ios: true
   image_path: "icon_3_512.png"

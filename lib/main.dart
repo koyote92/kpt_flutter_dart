@@ -1,19 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dart:io' show Platform, Directory, File;
+import 'dart:io' show Directory, File;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
-import 'dart:convert';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (Platform.isAndroid) {
-    WebViewPlatform.instance = AndroidWebViewPlatform();
-  }
-
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
     home: WebViewPage(),
@@ -46,9 +39,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
           onNavigationRequest: (NavigationRequest request) async {
             final String url = request.url.toLowerCase();
 
-            if (url.startsWith('file:///android_asset/') ||
-                url.startsWith('asset:///') ||
-                url.startsWith('file://') ||
+            if (url.startsWith('file://') ||
                 url.endsWith('.html') ||
                 url.endsWith('.js') ||
                 url.endsWith('.css') ||
@@ -75,20 +66,10 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         ),
       );
 
-    if (Platform.isAndroid) {
-      if (controller.platform is AndroidWebViewController) {
-        final androidController = controller.platform as AndroidWebViewController;
-        androidController.setAllowFileAccess(true);
-        androidController.setAllowContentAccess(true);
-      }
-    }
-
-    // JavaScript канал для команд из веб-версии
     controller.addJavaScriptChannel(
       'FlutterWebView',
       onMessageReceived: (JavaScriptMessage message) async {
         final String raw = message.message;
-
         if (raw == "RESTART_APP" || raw == "ERROR_PAGE_RETRY") {
           if (!mounted) return;
           setState(() => hasError = false);
@@ -103,72 +84,223 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
   Future<void> _loadLocalWebApp() async {
     const String remoteFallback = "https://app.kuraj-prodaj.com";
 
-    if (Platform.isAndroid) {
-      try {
-        await controller.loadRequest(
-          Uri.parse('file:///android_asset/flutter_assets/assets/web/index.html'),
-        );
-        print('✅ Android: загружен локальный index.html');
-      } catch (e) {
-        print('⚠️ Android ошибка: $e');
+    try {
+      print('📱 [iOS] Начинаем загрузку локальных файлов...');
+
+      final appDir = await getApplicationSupportDirectory();
+      final webDir = Directory('${appDir.path}/web');
+      final indexFile = File('${webDir.path}/index.html');
+
+      // Всегда удаляем старую копию и копируем заново
+      if (await webDir.exists()) {
+        await webDir.delete(recursive: true);
+      }
+      await webDir.create(recursive: true);
+
+      await _copyWebAssetsToDirectory(webDir.path);
+      print('✅ [iOS] Ассеты успешно скопированы');
+
+      if (await indexFile.exists()) {
+        final htmlContent = await indexFile.readAsString();
+        final baseUrl = 'file://${webDir.path}/';
+
+        await controller.loadHtmlString(htmlContent, baseUrl: baseUrl);
+        print('✅ [iOS] УСПЕШНО загружен локальный index.html через loadHtmlString + baseUrl');
+      } else {
+        print('❌ [iOS] index.html не найден!');
         await controller.loadRequest(Uri.parse(remoteFallback));
       }
-    } else {
-      try {
-        print('📱 [iOS] Начинаем загрузку локальных файлов...');
-
-        final appDir = await getApplicationSupportDirectory();
-        final webDir = Directory('${appDir.path}/web');
-
-        final indexFile = File('${webDir.path}/index.html');
-
-        // Копируем ассеты, если папки ещё нет ИЛИ index.html отсутствует
-        if (!await webDir.exists() || !await indexFile.exists()) {
-          print('📂 [iOS] Нужно скопировать ассеты...');
-          if (await webDir.exists()) {
-            await webDir.delete(recursive: true); // очищаем старую папку
-          }
-          await webDir.create(recursive: true);
-          await _copyWebAssetsToDirectory(webDir.path);
-          print('✅ [iOS] Ассеты успешно скопированы');
-        } else {
-          print('📂 [iOS] Локальные файлы уже есть');
-        }
-
-        if (await indexFile.exists()) {
-          await controller.loadRequest(Uri.file(indexFile.path));
-          print('✅ [iOS] УСПЕШНО загружен локальный index.html');
-        } else {
-          print('❌ [iOS] index.html всё равно не найден!');
-          await controller.loadRequest(Uri.parse(remoteFallback));
-        }
-      } catch (e, stackTrace) {
-        print('❌ [iOS] КРИТИЧЕСКАЯ ОШИБКА: $e');
-        print(stackTrace);
-        await controller.loadRequest(Uri.parse(remoteFallback));
-      }
+    } catch (e, stackTrace) {
+      print('❌ [iOS] КРИТИЧЕСКАЯ ОШИБКА: $e');
+      print(stackTrace);
+      await controller.loadRequest(Uri.parse(remoteFallback));
     }
   }
 
+  // ============================================================
+  // КОПИРОВАНИЕ ЛОКАЛЬНЫХ ФАЙЛОВ (без AssetManifest.json)
+  // ============================================================
   Future<void> _copyWebAssetsToDirectory(String targetPath) async {
-    try {
-      final manifestContent = await rootBundle.loadString('AssetManifest.json');
-      final Map<String, dynamic> manifest = json.decode(manifestContent);
-  
-      for (String assetPath in manifest.keys) {
-        if (assetPath.startsWith('assets/web/')) {
-          final data = await rootBundle.load(assetPath);
-          final relativePath = assetPath.replaceFirst('assets/web/', '');
-          final file = File('$targetPath/$relativePath');
-  
-          await file.create(recursive: true);
-          await file.writeAsBytes(data.buffer.asUint8List());
-        }
+    // Полный список файлов из assets/web/ (получен командой find)
+    const List<String> webAssets = [
+      'index_FULL.html',
+      'client.js',
+      'old-client.js',
+      'chart.min.js',
+      'index.html',
+      'bootstrap/css/bootstrap.min.css',
+      'bootstrap/js/bootstrap.min.js',
+      'admin.html',
+      'kpt_drop.html',
+      'css/Login-Form-Basic-icons.css',
+      'css/all.min.css',
+      'info_12.html',
+      'kpt_bye_old.html',
+      'kpt_bye_full.html',
+      'kpt_bye.html',
+      'telegram-web-app.js',
+      'img/KP_STUDIO_LOGO-03.svg',
+      'img/hero_GL-15.png',
+      'img/instramet_final 8.jpeg',
+      'img/instramet_final 18.jpeg',
+      'img/instramet_final 34.jpeg',
+      'img/instramet_final 22.jpeg',
+      'img/instramet_final 43.jpeg',
+      'img/instramet_final 14.jpeg',
+      'img/12_logo-02.png',
+      'img/instramet_final 4.jpeg',
+      'img/12_logo-02_optimal-02.png',
+      'img/instramet_final 38.jpeg',
+      'img/instramet_final 39.jpeg',
+      'img/instramet_final 5.jpeg',
+      'img/instramet_final 15.jpeg',
+      'img/instramet_final 42.jpeg',
+      'img/kp_new_11.png',
+      'img/12_logo-02_small-02.png',
+      'img/instramet_final 23.jpeg',
+      'img/instramet_final 35.jpeg',
+      'img/instramet_final 19.jpeg',
+      'img/kp_icon_192.png',
+      'img/instramet_final 9.jpeg',
+      'img/instramet_final 53.jpeg',
+      'img/instramet_final 45.jpeg',
+      'img/instramet_final 12.jpeg',
+      'img/instramet_final 2.jpeg',
+      'img/12_logo-02_small-02.svg',
+      'img/instramet_final 28.jpeg',
+      'img/kp_new_11.svg',
+      'img/instramet_final 49.jpeg',
+      'img/instramet_final 32.jpeg',
+      'img/instramet_final 24.jpeg',
+      'img/instramet_final 25.jpeg',
+      'img/instramet_final 33.jpeg',
+      'img/12_logo-02_optimal-02.svg',
+      'img/instramet_final 48.jpeg',
+      'img/12_logo-02.svg',
+      'img/instramet_final 29.jpeg',
+      'img/KP_STUDIO_LOGO-03.png',
+      'img/instramet_final 3.jpeg',
+      'img/instramet_final 13.jpeg',
+      'img/hero_GL-15.svg',
+      'img/instramet_final 44.jpeg',
+      'img/instramet_final 52.jpeg',
+      'img/instramet_final 10.jpeg',
+      'img/hero_GL-19.svg',
+      'img/instramet_final 47.jpeg',
+      'img/kp_icon_512.png',
+      'img/instramet_final 51.jpeg',
+      'img/instramet_final 26.jpeg',
+      'img/instramet_final 30.jpeg',
+      'img/12_logo_medium_blur.png',
+      'img/hero_GL_16.png',
+      'img/dreamer_logo-03.svg',
+      'img/instramet_final 31.jpeg',
+      'img/instramet_final 27.jpeg',
+      'img/instramet_final 50.jpeg',
+      'img/instramet_final 46.jpeg',
+      'img/instramet_final 11.jpeg',
+      'img/instramet_final 1.jpeg',
+      'img/12_logo-02_small-02-1.png',
+      'img/instramet_final 20.jpeg',
+      'img/instramet_final 36.jpeg',
+      'img/kp_field.png',
+      'img/icon_3_512.png',
+      'img/instramet_final 6.jpeg',
+      'img/hero_GL_16.svg',
+      'img/instramet_final 16.jpeg',
+      'img/instramet_final 41.jpeg',
+      'img/instramet_final 40.jpeg',
+      'img/instramet_final 17.jpeg',
+      'img/instramet_final 7.jpeg',
+      'img/dreamer.jpg',
+      'img/hero_GL-19.png',
+      'img/instramet_final 37.jpeg',
+      'img/instramet_final 21.jpeg',
+      'info_mechtatel.html',
+      'error_no_internet.html',
+      'webfonts/fa-solid-900.ttf',
+      'webfonts/fa-regular-400.woff2',
+      'webfonts/fa-v4compatibility.ttf',
+      'webfonts/fa-regular-400.ttf',
+      'webfonts/fa-v4compatibility.woff2',
+      'webfonts/fa-solid-900.woff2',
+      'webfonts/fa-brands-400.woff2',
+      'webfonts/fa-brands-400.ttf',
+      'icons/kp_icon_192.png',
+      'icons/kp_icon_512.png',
+      'icons/favicon.png',
+      'style.css',
+      'manifest.json',
+      'index_tmp.html',
+      'manifest.webmanifest',
+      'error.html',
+      'start_img/metacard_start 35.jpeg',
+      'start_img/metacard_start 23.jpeg',
+      'start_img/metacard_start 4.jpeg',
+      'start_img/metacard_start 19.jpeg',
+      'start_img/metacard_start 39.jpeg',
+      'start_img/metacard_start 8.jpeg',
+      'start_img/metacard_start 42.jpeg',
+      'start_img/metacard_start 15.jpeg',
+      'start_img/metacard_start 14.jpeg',
+      'start_img/metacard_start 43.jpeg',
+      'start_img/metacard_start 9.jpeg',
+      'start_img/metacard_start 38.jpeg',
+      'start_img/metacard_start 18.jpeg',
+      'start_img/metacard_start 5.jpeg',
+      'start_img/metacard_start 22.jpeg',
+      'start_img/metacard_start 34.jpeg',
+      'start_img/metacard_start 29.jpeg',
+      'start_img/metacard_start 52.jpeg',
+      'start_img/metacard_start 44.jpeg',
+      'start_img/metacard_start 13.jpeg',
+      'start_img/metacard_start 33.jpeg',
+      'start_img/metacard_start 25.jpeg',
+      'start_img/metacard_start 48.jpeg',
+      'start_img/metacard_start 2.jpeg',
+      'start_img/metacard_start 3.jpeg',
+      'start_img/metacard_start 49.jpeg',
+      'start_img/metacard_start 24.jpeg',
+      'start_img/metacard_start 32.jpeg',
+      'start_img/metacard_start 12.jpeg',
+      'start_img/metacard_start 45.jpeg',
+      'start_img/metacard_start 53.jpeg',
+      'start_img/metacard_start 28.jpeg',
+      'start_img/metacard_start 11.jpeg',
+      'start_img/metacard_start 46.jpeg',
+      'start_img/metacard_start 50.jpeg',
+      'start_img/metacard_start 27.jpeg',
+      'start_img/metacard_start 31.jpeg',
+      'start_img/metacard_start 30.jpeg',
+      'start_img/metacard_start 26.jpeg',
+      'start_img/metacard_start 1.jpeg',
+      'start_img/metacard_start 51.jpeg',
+      'start_img/metacard_start 47.jpeg',
+      'start_img/metacard_start 10.jpeg',
+      'start_img/metacard_start 6.jpeg',
+      'start_img/metacard_start 21.jpeg',
+      'start_img/metacard_start 37.jpeg',
+      'start_img/metacard_start 17.jpeg',
+      'start_img/metacard_start 40.jpeg',
+      'start_img/metacard_start 41.jpeg',
+      'start_img/metacard_start 16.jpeg',
+      'start_img/metacard_start 36.jpeg',
+      'start_img/metacard_start 20.jpeg',
+      'start_img/metacard_start 7.jpeg',
+      'privacy.html',
+      'kpt_start.html',
+    ];
+
+    for (final relativePath in webAssets) {
+      final assetPath = 'assets/web/$relativePath';
+      try {
+        final data = await rootBundle.load(assetPath);
+        final file = File('$targetPath/$relativePath');
+        await file.create(recursive: true);
+        await file.writeAsBytes(data.buffer.asUint8List());
+      } catch (e) {
+        print('⚠️ Не удалось скопировать $relativePath: $e');
       }
-    } catch (e) {
-      print('⚠️ Ошибка при чтении AssetManifest.json: $e');
-      // Можно добавить fallback-логику здесь при необходимости
-      rethrow;
     }
   }
 
