@@ -2,28 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:io' show Platform, Directory, File;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'dart:io' show Platform;
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ←←← Ручная инициализация Firebase (вставь свои данные)
-  await Firebase.initializeApp(
-    options: const FirebaseOptions(
-      apiKey: "AIzaSyDYh443MCVeiuM4Kc6rtLJrZOmABsWYzBE",           // из current_key
-      appId: "1:263810602183:android:3b91a432544f36a7901ae2",   // mobilesdk_app_id
-      messagingSenderId: "263810602183",                  // project_number
-      projectId: "kpt-origin",                                // project_id
-    ),
-  );
-
-  WebViewPlatform.instance = AndroidWebViewPlatform();
+  if (Platform.isAndroid) {
+    WebViewPlatform.instance = AndroidWebViewPlatform();
+  }
 
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -40,12 +29,7 @@ class WebViewPage extends StatefulWidget {
 
 class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClientMixin {
   late final WebViewController controller;
-
-  // Состояние ошибки
   bool hasError = false;
-
-  String? _fcmToken;
-  int? _realUserId;        // ← настоящий userId из localStorage
 
   @override
   bool get wantKeepAlive => true;
@@ -57,16 +41,14 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFFFFFFF))
-
-    // === ЕДИНСТВЕННЫЙ NavigationDelegate ===
       ..setNavigationDelegate(
         NavigationDelegate(
           onNavigationRequest: (NavigationRequest request) async {
             final String url = request.url.toLowerCase();
-            print('🔄 NavigationRequest: $url');
 
             if (url.startsWith('file:///android_asset/') ||
                 url.startsWith('asset:///') ||
+                url.startsWith('file://') ||
                 url.endsWith('.html') ||
                 url.endsWith('.js') ||
                 url.endsWith('.css') ||
@@ -74,207 +56,119 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 url.endsWith('.png') ||
                 url.endsWith('.jpg') ||
                 url.endsWith('.jpeg') ||
-                // url.startsWith('https://kuraj-prodaj.com') ||
                 url.startsWith('https://auth.0422.ru') ||
-                // url.startsWith('https://mechtatel.team') ||
-                url.startsWith('https://app.kuraj-prodaj.com')) {
-
-              print('✅ Allowed: $url');
+                url.startsWith('https://app.kuraj-prodaj.com') ||
+                url.startsWith('https://kpt.kuraj-prodaj.com')) {
               return NavigationDecision.navigate;
             }
 
-            // Всё остальное — во внешний браузер
-            print('→ Открываем во внешнем браузере: $url');
             await _openInExternalBrowser(request.url);
             return NavigationDecision.prevent;
           },
 
-          onWebResourceError: (WebResourceError error) async {
-            print('╔══════════════════════════════════════════════════════════════');
-            print('║ WEBVIEW RESOURCE ERROR');
-            print('║ Code      : ${error.errorCode}');
-            print('║ Desc      : ${error.description}');
-            print('║ URL       : ${error.url ?? "unknown"}');
-            print('║ MainFrame : ${error.isForMainFrame}');
-            print('╚══════════════════════════════════════════════════════════════');
-
+          onWebResourceError: (WebResourceError error) {
             if (!mounted) return;
-
-            // Ловим DNS и сетевые ошибки
-            if (error.errorCode == -2 ||
-                error.errorCode == -3 ||
-                error.errorCode == -6 ||
-                error.errorCode == -102 ||
-                error.errorCode == -104 ||
-                error.errorCode == -109 ||
-                error.description.toLowerCase().contains('name not resolved') ||
-                error.description.toLowerCase().contains('net::err_name_not_resolved')) {
-
-              print('→ Обнаружена ошибка ERR_NAME_NOT_RESOLVED');
-
-              try {
-                final String errorHtml = await rootBundle.loadString('assets/web/error.html');
-                await controller.loadHtmlString(errorHtml);
-                print('→ Кастомная error.html успешно загружена');
-                return;
-              } catch (e) {
-                print('→ Не удалось загрузить error.html: $e');
-              }
-            }
-
-            // Если ошибка на главном фрейме — показываем заглушку
             if (error.isForMainFrame == true) {
-              if (mounted) setState(() => hasError = true);
+              setState(() => hasError = true);
             }
-          },
-
-          onPageFinished: (String url) async {
-            print('✅ Page finished: $url');
-
-            // Хак против ORB (оставляем)
-            await controller.runJavaScript('''
-            if (window.ORBWorkaround === undefined) {
-              console.log("[ORB Workaround] Injecting...");
-              window.ORBWorkaround = true;
-              const originalFetch = window.fetch;
-              window.fetch = function(...args) {
-                return originalFetch(...args);
-              };
-            }
-          ''');
           },
         ),
       );
 
-    // === Android-specific настройки ===
-    if (controller.platform is AndroidWebViewController) {
-      final androidController = controller.platform as AndroidWebViewController;
-      androidController.setAllowFileAccess(true);
-      androidController.setAllowContentAccess(true);
-
-      controller.addJavaScriptChannel(
-        'FlutterWebView',
-        onMessageReceived: (JavaScriptMessage message) async {
-          final String raw = message.message;
-          print('📨 FlutterWebView message: $raw');
-
-          // === 1. Пытаемся разобрать как JSON (REGISTER_FCM) ===
-          try {
-            final data = jsonDecode(raw);
-            if (data is Map<String, dynamic> && data['type'] == "REGISTER_FCM") {
-              final int userId = data['userId'];
-              _realUserId = userId;
-              print('✅ Получен реальный userId из WebView: $userId');
-
-              if (_fcmToken != null) {
-                await _registerFCMToken(userId, _fcmToken!);
-              } else {
-                print('⚠️ FCM токен ещё не получен — сохранили userId');
-              }
-              return; // выходим, дальше не нужно
-            }
-          } catch (_) {
-            // Это не JSON → значит, старое строковое сообщение
-          }
-
-          // === 2. Обработка старых строковых команд ===
-          if (raw == "RESTART_APP" || raw == "ERROR_PAGE_RETRY") {
-            if (!mounted) return;
-            print('🔄 Получена команда на перезапуск');
-            setState(() => hasError = false);
-            await _loadLocalWebApp();
-          }
-        },
-      );
+    if (Platform.isAndroid) {
+      if (controller.platform is AndroidWebViewController) {
+        final androidController = controller.platform as AndroidWebViewController;
+        androidController.setAllowFileAccess(true);
+        androidController.setAllowContentAccess(true);
+      }
     }
 
-    // Загружаем стартовую страницу
+    // JavaScript канал для команд из веб-версии
+    controller.addJavaScriptChannel(
+      'FlutterWebView',
+      onMessageReceived: (JavaScriptMessage message) async {
+        final String raw = message.message;
+
+        if (raw == "RESTART_APP" || raw == "ERROR_PAGE_RETRY") {
+          if (!mounted) return;
+          setState(() => hasError = false);
+          await _loadLocalWebApp();
+        }
+      },
+    );
+
     _loadLocalWebApp();
-
-    _initFCM();
-  }
-
-  // ==================== НОВЫЙ МЕТОД ====================
-  Future<void> _initFCM() async {
-    try {
-      final messaging = FirebaseMessaging.instance;
-      await messaging.requestPermission(alert: true, badge: true, sound: true);
-
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      final token = await messaging.getToken();
-      if (token == null || token.isEmpty) {
-        print('❌ FCM token не получен');
-        return;
-      }
-
-      _fcmToken = token;
-      print('🔥 FCM Token получен: ${token.substring(0, 40)}...');
-
-      // Если userId уже пришёл из WebView — сразу регистрируем
-      if (_realUserId != null) {
-        await _registerFCMToken(_realUserId!, token);
-      }
-    } catch (e) {
-      print('❌ Ошибка инициализации FCM: $e');
-    }
-  }
-
-// ==================== РЕГИСТРАЦИЯ НА ТВОЁМ СЕРВЕРЕ ====================
-  Future<void> _registerFCMToken(int userId, String token) async {
-    try {
-      final deviceInfo = DeviceInfoPlugin();
-      String deviceId = "unknown";
-
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-
-        // Формируем читаемый device_id
-        deviceId = "${androidInfo.brand}-${androidInfo.model}-Android${androidInfo.version.release}"
-            .replaceAll(" ", "_")                    // убираем пробелы
-            .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), ''); // оставляем только безопасные символы
-      }
-      else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceId = "${iosInfo.model}-iOS${iosInfo.systemVersion}";
-      }
-
-      final response = await http.post(
-        Uri.parse('https://app-dev.0422.ru/api/fcm/register-token'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "user_id": userId,
-          "fcm_token": token,
-          "platform": Platform.isAndroid ? "android" : "ios",
-          "device_name": deviceId,           // для удобства в device_name тоже кладём
-          "device_id": deviceId,             // ← главное, что ты просил
-          "device_manufacturer": Platform.isAndroid ? (await deviceInfo.androidInfo).manufacturer : null,
-        }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print('✅ Токен зарегистрирован');
-        print('📱 device_id → $deviceId');
-      } else {
-        print('⚠️ Ошибка сервера: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ Ошибка при регистрации FCM: $e');
-    }
   }
 
   Future<void> _loadLocalWebApp() async {
+    const String remoteFallback = "https://app.kuraj-prodaj.com";
+
+    if (Platform.isAndroid) {
+      try {
+        await controller.loadRequest(
+          Uri.parse('file:///android_asset/flutter_assets/assets/web/index.html'),
+        );
+        print('✅ Android: загружен локальный index.html');
+      } catch (e) {
+        print('⚠️ Android ошибка: $e');
+        await controller.loadRequest(Uri.parse(remoteFallback));
+      }
+    } else {
+      try {
+        print('📱 [iOS] Начинаем загрузку локальных файлов...');
+
+        final appDir = await getApplicationSupportDirectory();
+        final webDir = Directory('${appDir.path}/web');
+
+        final indexFile = File('${webDir.path}/index.html');
+
+        // Копируем ассеты, если папки ещё нет ИЛИ index.html отсутствует
+        if (!await webDir.exists() || !await indexFile.exists()) {
+          print('📂 [iOS] Нужно скопировать ассеты...');
+          if (await webDir.exists()) {
+            await webDir.delete(recursive: true); // очищаем старую папку
+          }
+          await webDir.create(recursive: true);
+          await _copyWebAssetsToDirectory(webDir.path);
+          print('✅ [iOS] Ассеты успешно скопированы');
+        } else {
+          print('📂 [iOS] Локальные файлы уже есть');
+        }
+
+        if (await indexFile.exists()) {
+          await controller.loadRequest(Uri.file(indexFile.path));
+          print('✅ [iOS] УСПЕШНО загружен локальный index.html');
+        } else {
+          print('❌ [iOS] index.html всё равно не найден!');
+          await controller.loadRequest(Uri.parse(remoteFallback));
+        }
+      } catch (e, stackTrace) {
+        print('❌ [iOS] КРИТИЧЕСКАЯ ОШИБКА: $e');
+        print(stackTrace);
+        await controller.loadRequest(Uri.parse(remoteFallback));
+      }
+    }
+  }
+
+  Future<void> _copyWebAssetsToDirectory(String targetPath) async {
     try {
-      print('[WebView] Trying file:///android_asset/flutter_assets/assets/web/index.html');
-
-      await controller.loadRequest(
-        Uri.parse('file:///android_asset/flutter_assets/assets/web/index.html'),
-      );
-
-      print('[WebView] Successfully loaded via file:///android_asset/');
+      final manifestContent = await rootBundle.loadString('AssetManifest.json');
+      final Map<String, dynamic> manifest = json.decode(manifestContent);
+  
+      for (String assetPath in manifest.keys) {
+        if (assetPath.startsWith('assets/web/')) {
+          final data = await rootBundle.load(assetPath);
+          final relativePath = assetPath.replaceFirst('assets/web/', '');
+          final file = File('$targetPath/$relativePath');
+  
+          await file.create(recursive: true);
+          await file.writeAsBytes(data.buffer.asUint8List());
+        }
+      }
     } catch (e) {
-      print('[WebView] Failed to load local: $e');
-      await controller.loadRequest(Uri.parse("https://kpt.kuraj-prodaj.com"));
+      print('⚠️ Ошибка при чтении AssetManifest.json: $e');
+      // Можно добавить fallback-логику здесь при необходимости
+      rethrow;
     }
   }
 
@@ -282,14 +176,9 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
     final uri = Uri.parse(url);
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      try {
-        await launchUrl(uri, mode: LaunchMode.platformDefault);
-      } catch (_) {}
-    }
+    } catch (_) {}
   }
 
-  // Кнопка "Повторить"
   void _reloadPage() {
     setState(() => hasError = false);
     controller.reload();
@@ -303,10 +192,7 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       body: SafeArea(
         child: Stack(
           children: [
-            // Основной WebView
             WebViewWidget(controller: controller),
-
-            // === НАША ЗАГЛУШКА ===
             if (hasError)
               Container(
                 color: Colors.white,
@@ -323,19 +209,6 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                           style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 20),
-
-                        // Show more details on phone
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          color: Colors.red[50],
-                          child: const Text(
-                            "Не удалось загрузить локальные файлы.\nПроверьте assets/web/kpt_start.html",
-                            style: TextStyle(color: Colors.red, fontSize: 14),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-
                         const SizedBox(height: 40),
                         ElevatedButton.icon(
                           onPressed: _reloadPage,

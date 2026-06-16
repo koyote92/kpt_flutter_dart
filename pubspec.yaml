@@ -14,10 +14,8 @@ dependencies:
   webview_flutter: ^4.13.1
   webview_flutter_android: ^4.2.0
   flutter_launcher_icons: ^0.14.4
-  firebase_core: ^3.6.0
-  firebase_messaging: ^15.1.0
   http: ^1.2.2
-  device_info_plus: ^10.1.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
