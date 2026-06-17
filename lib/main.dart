@@ -4,9 +4,16 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Directory, File;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // === OneSignal (iOS Push Notifications) ===
+  OneSignal.Debug.setLogLevel(OSLogLevel.verbose); // для отладки, потом уберёшь
+  OneSignal.initialize("ВСТАВЬ_СЮДА_СВОЙ_APP_ID");
+  OneSignal.Notifications.requestPermission(true);
+
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
     home: WebViewPage(),
@@ -77,6 +84,25 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
         }
       },
     );
+
+    // === OneSignal слушатели (добавляем ПОСЛЕ создания controller) ===
+    OneSignal.Notifications.addClickListener((OSNotificationClickEvent event) {
+      print('🔔 Пользователь нажал на уведомление');
+      final data = event.notification.additionalData;
+      print('Дополнительные данные: $data');
+
+      if (data != null && data['url'] != null) {
+        final String targetUrl = data['url'].toString();
+        print('→ Открываем URL из уведомления: $targetUrl');
+        controller.loadRequest(Uri.parse(targetUrl));
+      }
+    });
+
+    OneSignal.Notifications.addForegroundWillDisplayListener((OSNotificationWillDisplayEvent event) {
+      print('🔔 Уведомление на переднем плане: ${event.notification.title}');
+      event.preventDefault();
+      event.notification.display();
+    });
 
     _loadLocalWebApp();
   }
