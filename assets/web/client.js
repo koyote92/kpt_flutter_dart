@@ -224,8 +224,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
         // 3. Нет ни валидного токена, ни возврата после авторизации → открываем форму
         console.log('[CLIENT] Нет токена и нет возврата после SMS → открываем форму авторизации');
+        const isProxy = window.location.hostname.endsWith('.compitum.ru');
+        const AUTH_BASE = isProxy 
+            ? 'https://auth.0422.ru.compitum.ru' 
+            : 'https://auth.0422.ru';
+            
         const returnUrl = encodeURIComponent(window.location.href);
-        window.location.href = `https://gl-auth.0422.ru/?redirect=${returnUrl}`;
+        window.location.href = `${AUTH_BASE}/?redirect=${returnUrl}`;
     }
 
     // k92

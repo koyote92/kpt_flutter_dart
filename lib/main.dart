@@ -4,15 +4,15 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:io' show Directory, File;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:path_provider/path_provider.dart';
-import 'package:onesignal_flutter/onesignal_flutter.dart';
+// import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // === OneSignal (iOS Push Notifications) ===
-  OneSignal.Debug.setLogLevel(OSLogLevel.verbose); // для отладки, потом уберёшь
-  OneSignal.initialize("ВСТАВЬ_СЮДА_СВОЙ_APP_ID");
-  OneSignal.Notifications.requestPermission(true);
+  // OneSignal временно отключён
+  // OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+  // OneSignal.initialize("f29fb00f-46a6-415a-9c39-1f02aa0e9676");
+  // OneSignal.Notifications.requestPermission(true);
 
   runApp(const MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -56,15 +56,17 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
                 url.endsWith('.jpeg') ||
                 url.startsWith('https://auth.0422.ru') ||
                 url.startsWith('https://app.kuraj-prodaj.com') ||
-                url.startsWith('https://kpt.kuraj-prodaj.com')) {
+                url.startsWith('https://kpt.kuraj-prodaj.com') ||
+                url.startsWith('https://auth.0422.ru.compitum.ru') ||
+                url.startsWith('https://app.kuraj-prodaj.com.compitum.ru')) {
               return NavigationDecision.navigate;
             }
 
             await _openInExternalBrowser(request.url);
             return NavigationDecision.prevent;
           },
-
           onWebResourceError: (WebResourceError error) {
+            print(error);
             if (!mounted) return;
             if (error.isForMainFrame == true) {
               setState(() => hasError = true);
@@ -85,69 +87,66 @@ class _WebViewPageState extends State<WebViewPage> with AutomaticKeepAliveClient
       },
     );
 
-    // === OneSignal слушатели (добавляем ПОСЛЕ создания controller) ===
-    OneSignal.Notifications.addClickListener((OSNotificationClickEvent event) {
-      print('🔔 Пользователь нажал на уведомление');
-      final data = event.notification.additionalData;
-      print('Дополнительные данные: $data');
-
-      if (data != null && data['url'] != null) {
-        final String targetUrl = data['url'].toString();
-        print('→ Открываем URL из уведомления: $targetUrl');
-        controller.loadRequest(Uri.parse(targetUrl));
-      }
-    });
-
-    OneSignal.Notifications.addForegroundWillDisplayListener((OSNotificationWillDisplayEvent event) {
-      print('🔔 Уведомление на переднем плане: ${event.notification.title}');
-      event.preventDefault();
-      event.notification.display();
-    });
-
+    // Запуск загрузки веб-приложения (OneSignal закомментирован)
     _loadLocalWebApp();
   }
 
   Future<void> _loadLocalWebApp() async {
-    const String remoteFallback = "https://app.kuraj-prodaj.com";
-
+    const String realUrl  = "https://app.kuraj-prodaj.com";
+    const String proxyUrl = "https://app.kuraj-prodaj.com.compitum.ru";
+  
     try {
       print('📱 [iOS] Начинаем загрузку локальных файлов...');
-
       final appDir = await getApplicationSupportDirectory();
       final webDir = Directory('${appDir.path}/web');
       final indexFile = File('${webDir.path}/index.html');
-
-      // Всегда удаляем старую копию и копируем заново
+  
       if (await webDir.exists()) {
         await webDir.delete(recursive: true);
       }
       await webDir.create(recursive: true);
-
       await _copyWebAssetsToDirectory(webDir.path);
       print('✅ [iOS] Ассеты успешно скопированы');
-
+  
       if (await indexFile.exists()) {
-        final htmlContent = await indexFile.readAsString();
-        final baseUrl = 'file://${webDir.path}/';
-
-        await controller.loadHtmlString(htmlContent, baseUrl: baseUrl);
-        print('✅ [iOS] УСПЕШНО загружен локальный index.html через loadHtmlString + baseUrl');
+        await controller.loadFile(indexFile.path);
+        print('✅ [iOS] УСПЕХ: загружен локальный index.html');
       } else {
-        print('❌ [iOS] index.html не найден!');
-        await controller.loadRequest(Uri.parse(remoteFallback));
+        print('❌ index.html не найден → пробуем remote');
+        await _loadRemoteWithFallback(realUrl, proxyUrl);
       }
     } catch (e, stackTrace) {
-      print('❌ [iOS] КРИТИЧЕСКАЯ ОШИБКА: $e');
+      print('❌ ОШИБКА: $e');
       print(stackTrace);
-      await controller.loadRequest(Uri.parse(remoteFallback));
+      await _loadRemoteWithFallback(realUrl, proxyUrl);
+    }
+  }
+  
+  Future<void> _loadRemoteWithFallback(String realUrl, String proxyUrl) async {
+    try {
+      // Пробуем основной (таймаут 5 секунд)
+      await controller
+          .loadRequest(Uri.parse(realUrl))
+          .timeout(const Duration(seconds: 5));
+      print('✅ Загрузили основной: $realUrl');
+    } catch (e) {
+      print('⚠️ Основной недоступен ($e), пробуем прокси...');
+      try {
+        await controller.loadRequest(Uri.parse(proxyUrl));
+        print('✅ Загрузили прокси: $proxyUrl');
+      } catch (proxyErr) {
+        print('❌ Прокси тоже не загрузился: $proxyErr');
+        if (mounted) {
+          setState(() => hasError = true);
+        }
+      }
     }
   }
 
   // ============================================================
-  // КОПИРОВАНИЕ ЛОКАЛЬНЫХ ФАЙЛОВ (без AssetManifest.json)
+  // КОПИРОВАНИЕ ЛОКАЛЬНЫХ ФАЙЛОВ
   // ============================================================
   Future<void> _copyWebAssetsToDirectory(String targetPath) async {
-    // Полный список файлов из assets/web/ (получен командой find)
     const List<String> webAssets = [
       'index_FULL.html',
       'client.js',

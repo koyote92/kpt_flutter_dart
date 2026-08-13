@@ -1,6 +1,6 @@
 name: webview_app
 description: "Кураж Продаж Тренажёр"
-version: 1.0.5+6
+version: 1.0.6+7
 
 environment:
   sdk: ^3.11.1
@@ -35,4 +35,4 @@ flutter:
 flutter_launcher_icons:
   android: false
   ios: true
-  image_path: "icon_3_512.png"
+  image_path: "good_icon.jpg"
